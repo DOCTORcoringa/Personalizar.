@@ -2,10 +2,18 @@ import sys
 import time
 import os
 import json
+import shutil
+
+try:
+    import pyfiglet
+except ImportError:
+    os.system("pip install pyfiglet")
+    import pyfiglet
 
 CONFIG_FILE = os.path.expanduser("~/.termux_custom_config.json")
 BASHRC_FILE = os.path.expanduser("~/.bashrc")
 BASHRC_BACKUP = os.path.expanduser("~/.bashrc.bak")
+
 MARKER_START = "# === Termux Customizer Start ==="
 MARKER_END = "# === Termux Customizer End ==="
 
@@ -29,13 +37,13 @@ STYLES = {
     "Invertido": "7",
 }
 
-def type_print(msg, color="32", style="0"):
+def type_print(msg, color="32", style="0", delay=0.03):
     ansi_start = f"\033[{style};{color}m"
     ansi_end = "\033[0m"
     for c in msg:
         sys.stdout.write(ansi_start + c + ansi_end)
         sys.stdout.flush()
-        time.sleep(0.03)
+        time.sleep(delay)
     print()
 
 def show_banner():
@@ -60,7 +68,7 @@ def show_spec():
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
+        with open(CONFIG_FILE,"r") as f:
             try:
                 return json.load(f)
             except:
@@ -68,19 +76,25 @@ def load_config():
     return {}
 
 def save_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f)
+    with open(CONFIG_FILE,"w") as f:
+        json.dump(config,f)
+
+def generate_banner(name):
+    try:
+        ascii_banner = pyfiglet.figlet_format(name)
+        return ascii_banner
+    except Exception as e:
+        return name.upper()
 
 def update_bashrc(config):
-    # Faz backup na primeira vez
+    # Backup do bashrc original
     if not os.path.exists(BASHRC_BACKUP):
-        os.system(f"cp {BASHRC_FILE} {BASHRC_BACKUP}")
+        shutil.copy(BASHRC_FILE, BASHRC_BACKUP)
 
-    # Remove trecho antigo do customizer, se existir
+    # Remove trechos antigos do customizer
     if os.path.exists(BASHRC_FILE):
         with open(BASHRC_FILE, "r") as f:
             lines = f.readlines()
-
         start_idx = None
         end_idx = None
         for i, line in enumerate(lines):
@@ -88,24 +102,23 @@ def update_bashrc(config):
                 start_idx = i
             if line.strip() == MARKER_END:
                 end_idx = i
-
         if start_idx is not None and end_idx is not None and end_idx > start_idx:
             lines = lines[:start_idx] + lines[end_idx+1:]
-
         with open(BASHRC_FILE, "w") as f:
             f.writelines(lines)
 
-    # Adiciona novo trecho com as configurações
-    name = config.get("name", "Usuário")
+    name = config.get("name", "USUARIO")
     color = config.get("color", "32")
     style = config.get("style", "0")
-    # Mensagem a ser mostrada no prompt, escapando as barras corretamente
-    message = f"Seja bem-vindo, {name}!"
 
+    banner_ascii = generate_banner(name).replace('\n', '\\n')
+
+    # Script para sobrescrever o bashrc com banner e a mensagem de boas-vindas:
     custom_script = f"""
 {MARKER_START}
-# Termux Customizer - mensagem personalizada de boas-vindas
-echo -e "\\033[{style};{color}m{message}\\033[0m"
+clear
+echo -e "{banner_ascii}"
+echo -e "\\033[{style};{color}mSeja bem-vindo, {name}!\\033[0m"
 {MARKER_END}
 """
 
@@ -117,7 +130,7 @@ def menu(config):
         type_print("Menu: 1-Nome 2-Cor 3-Estilo 4-Sair e Salvar", "32", "1")
         choice = input("Opção: ").strip()
         if choice == "1":
-            name = input("Digite seu nome: ").strip()
+            name = input("Digite seu nome (para o banner): ").strip()
             if name:
                 config["name"] = name
         elif choice == "2":
