@@ -4,8 +4,11 @@ import os
 import json
 
 CONFIG_FILE = os.path.expanduser("~/.termux_custom_config.json")
+BASHRC_FILE = os.path.expanduser("~/.bashrc")
+BASHRC_BACKUP = os.path.expanduser("~/.bashrc.bak")
+MARKER_START = "# === Termux Customizer Start ==="
+MARKER_END = "# === Termux Customizer End ==="
 
-# Cores ANSI (códigos para texto colorido)
 COLORS = {
     "Preto": "30",
     "Vermelho": "31",
@@ -18,29 +21,42 @@ COLORS = {
     "Cinza": "90"
 }
 
-# Estilos ANSI
 STYLES = {
     "Normal": "0",
     "Negrito": "1",
     "Sublinhado": "4",
     "Piscante": "5",
     "Invertido": "7",
-    "Negrito + Sublinhado": "1;4",
-    "Negrito + Piscante": "1;5",
-    "Sublinhado + Piscante": "4;5",
-    "Negrito + Invertido": "1;7",
-    "Sublinhado + Invertido": "4;7"
 }
 
-def type_print(message, color_code="32", style_code="0", delay=0.03):
-    # color_code e style_code são strings com códigos ANSI
-    ansi_start = f"\033[{style_code};{color_code}m"
+def type_print(msg, color="32", style="0"):
+    ansi_start = f"\033[{style};{color}m"
     ansi_end = "\033[0m"
-    for char in message:
-        sys.stdout.write(f"{ansi_start}{char}{ansi_end}")
+    for c in msg:
+        sys.stdout.write(ansi_start + c + ansi_end)
         sys.stdout.flush()
-        time.sleep(delay)
+        time.sleep(0.03)
     print()
+
+def show_banner():
+    banner = [
+        "=========================================",
+        "   Script de Personalização Termux       ",
+        "    Criado por Doctor Coringa Lunático   ",
+        "  Personalize sua área de trabalho fácil ",
+        "========================================="
+    ]
+    for line in banner:
+        type_print(line, "32", "1")  # Verde negrito
+
+def show_spec():
+    spec = (
+        "Este sistema foi criado por Doctor Coringa Lunático\n"
+        "para personalizar seu ambiente de trabalho no Termux.\n"
+        "Escolha cores, estilos e defina seu nome para\n"
+        "ter um terminal organizado e personalizado.\n"
+    )
+    type_print(spec, "32", "0")
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -55,93 +71,86 @@ def save_config(config):
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
 
-def show_banner():
-    banner_lines = [
-        "=======================================",
-        "   Termux Customizer por Doctor Coringa Lunático  ",
-        "   Mantenha seu ambiente organizado e limpo       ",
-        "======================================="
-    ]
-    for line in banner_lines:
-        type_print(line, color_code=COLORS["Verde"], style_code=STYLES["Negrito"], delay=0.01)
-    print()
+def update_bashrc(config):
+    # Faz backup na primeira vez
+    if not os.path.exists(BASHRC_BACKUP):
+        os.system(f"cp {BASHRC_FILE} {BASHRC_BACKUP}")
 
-def show_about():
-    about_text = (
-        "Este sistema foi desenvolvido por Doctor Coringa Lunático\n"
-        "em prol de sempre manter o seu ambiente de trabalho organizado e limpo.\n"
-        "Este script permite personalizar o Termux com opções que você controla.\n"
-        "Slogan: 'Organizar, personalizar, otimizar seu ambiente!'"
-    )
-    type_print(about_text, delay=0.03)
-    print()
+    # Remove trecho antigo do customizer, se existir
+    if os.path.exists(BASHRC_FILE):
+        with open(BASHRC_FILE, "r") as f:
+            lines = f.readlines()
 
-def choose_option(options_dict, title):
-    type_print(title)
-    options = list(options_dict.keys())
-    for i, option in enumerate(options, start=1):
-        print(f"{i} - {option}")
-    while True:
-        choice = input("Escolha uma opção pelo número: ").strip()
-        if choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(options):
-                return options[idx]
-        type_print("Opção inválida, tente novamente.")
+        start_idx = None
+        end_idx = None
+        for i, line in enumerate(lines):
+            if line.strip() == MARKER_START:
+                start_idx = i
+            if line.strip() == MARKER_END:
+                end_idx = i
+
+        if start_idx is not None and end_idx is not None and end_idx > start_idx:
+            lines = lines[:start_idx] + lines[end_idx+1:]
+
+        with open(BASHRC_FILE, "w") as f:
+            f.writelines(lines)
+
+    # Adiciona novo trecho com as configurações
+    name = config.get("name", "Usuário")
+    color = config.get("color", "32")
+    style = config.get("style", "0")
+    # Mensagem a ser mostrada no prompt, escapando as barras corretamente
+    message = f"Seja bem-vindo, {name}!"
+
+    custom_script = f"""
+{MARKER_START}
+# Termux Customizer - mensagem personalizada de boas-vindas
+echo -e "\\033[{style};{color}m{message}\\033[0m"
+{MARKER_END}
+"""
+
+    with open(BASHRC_FILE, "a") as f:
+        f.write(custom_script)
 
 def menu(config):
     while True:
-        type_print("Menu de Personalização - Escolha uma opção:", delay=0.01)
-        print("1 - Alterar nome do prompt")
-        print("2 - Escolher cor do texto")
-        print("3 - Escolher estilo do texto")
-        print("4 - Mostrar informações do sistema")
-        print("5 - Ver mensagem de boas-vindas")
-        print("6 - Sair e salvar")
+        type_print("Menu: 1-Nome 2-Cor 3-Estilo 4-Sair e Salvar", "32", "1")
         choice = input("Opção: ").strip()
-
         if choice == "1":
-            new_name = input("Digite o novo nome para o prompt: ").strip()
-            if new_name:
-                config["prompt_name"] = new_name
-                type_print(f"Nome alterado para: {new_name}")
-            else:
-                type_print("Nome não pode ser vazio.")
+            name = input("Digite seu nome: ").strip()
+            if name:
+                config["name"] = name
         elif choice == "2":
-            cor = choose_option(COLORS, "Escolha a cor do texto:")
-            config["color"] = COLORS[cor]
-            type_print(f"Cor alterada para: {cor}")
+            for i, c in enumerate(COLORS.keys(), 1):
+                print(f"{i} - {c}")
+            cchoice = input("Escolha cor (número): ").strip()
+            try:
+                ckey = list(COLORS.keys())[int(cchoice)-1]
+                config["color"] = COLORS[ckey]
+            except:
+                type_print("Cor inválida.", "31")
         elif choice == "3":
-            estilo = choose_option(STYLES, "Escolha o estilo do texto:")
-            config["style"] = STYLES[estilo]
-            type_print(f"Estilo alterado para: {estilo}")
+            for i, s in enumerate(STYLES.keys(), 1):
+                print(f"{i} - {s}")
+            schoice = input("Escolha estilo (número): ").strip()
+            try:
+                skey = list(STYLES.keys())[int(schoice)-1]
+                config["style"] = STYLES[skey]
+            except:
+                type_print("Estilo inválido.", "31")
         elif choice == "4":
-            show_about()
-        elif choice == "5":
-            name = config.get("prompt_name", "Usuário")
-            color = config.get("color", COLORS["Verde"])
-            style = config.get("style", STYLES["Normal"])
-            msg = f"Seja bem-vindo, {name}!"
-            type_print(msg, color_code=color, style_code=style)
-        elif choice == "6":
             save_config(config)
-            type_print("Configurações salvas. Saindo...")
+            update_bashrc(config)
+            type_print("Configurações salvas e bashrc atualizado! Reinicie o Termux.", "32")
             break
         else:
-            type_print("Opção inválida, tente novamente.")
-
-def welcome_message(config):
-    name = config.get("prompt_name", "Usuário")
-    color = config.get("color", COLORS["Verde"])
-    style = config.get("style", STYLES["Normal"])
-    msg = f"Seja bem-vindo, {name}!"
-    type_print(msg, color_code=color, style_code=style)
+            type_print("Opção inválida.", "31")
 
 def main():
     os.system("clear")
-    config = load_config()
     show_banner()
-    welcome_message(config)
+    show_spec()
+    config = load_config()
     menu(config)
 
 if __name__ == "__main__":
