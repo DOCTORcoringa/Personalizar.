@@ -37,7 +37,7 @@ STYLES = {
     "Invertido": "7",
 }
 
-def type_print(msg, color="32", style="0", delay=0.03):
+def type_print(msg, color="32", style="0", delay=0.02):
     ansi_start = f"\033[{style};{color}m"
     ansi_end = "\033[0m"
     for c in msg:
@@ -47,22 +47,21 @@ def type_print(msg, color="32", style="0", delay=0.03):
     print()
 
 def show_banner():
-    banner = [
-        "=========================================",
-        "   Script de Personalização Termux       ",
-        "    Criado por Doctor Coringa Lunático   ",
-        "  Personalize sua área de trabalho fácil ",
-        "========================================="
+    lines = [
+        r"╔════════════════════════════════════════╗",
+        r"║          Script de Personalização       ║",
+        r"║        Criado por Doctor Coringa Lunático ║",
+        r"║     Personalize sua área de trabalho    ║",
+        r"╚════════════════════════════════════════╝"
     ]
-    for line in banner:
-        type_print(line, "32", "1")  # Verde negrito
+    for line in lines:
+        type_print(line, "32", "1")
 
 def show_spec():
     spec = (
         "Este sistema foi criado por Doctor Coringa Lunático\n"
         "para personalizar seu ambiente de trabalho no Termux.\n"
-        "Escolha cores, estilos e defina seu nome para\n"
-        "ter um terminal organizado e personalizado.\n"
+        "Escolha nomes, cores, estilos e prompt para um terminal organizado.\n"
     )
     type_print(spec, "32", "0")
 
@@ -72,7 +71,7 @@ def load_config():
             try:
                 return json.load(f)
             except:
-                return {}
+                pass
     return {}
 
 def save_config(config):
@@ -83,15 +82,24 @@ def generate_banner(name):
     try:
         ascii_banner = pyfiglet.figlet_format(name)
         return ascii_banner
-    except Exception as e:
+    except Exception:
         return name.upper()
 
+def generate_prompt(name, color_code, style_code):
+    # Caixa com nome e seta
+    # Exemplo: [ Nome ➜ ] $
+    box = f"\\[\\033[{style_code};{color_code}m\\]" \
+          f"[ {name} ➜ ] " \
+          f"\\[\\033[0m\\]"
+    prompt = f'{box}\\$ '
+    return prompt
+
 def update_bashrc(config):
-    # Backup do bashrc original
-    if not os.path.exists(BASHRC_BACKUP):
+    # Backup
+    if not os.path.exists(BASHRC_BACKUP) and os.path.exists(BASHRC_FILE):
         shutil.copy(BASHRC_FILE, BASHRC_BACKUP)
 
-    # Remove trechos antigos do customizer
+    # Remove trecho antigo do customizer
     if os.path.exists(BASHRC_FILE):
         with open(BASHRC_FILE, "r") as f:
             lines = f.readlines()
@@ -107,63 +115,97 @@ def update_bashrc(config):
         with open(BASHRC_FILE, "w") as f:
             f.writelines(lines)
 
-    name = config.get("name", "USUARIO")
+    # Gera banner ASCII e prompt customizado
+    name = config.get("banner_name", "USUARIO")
     color = config.get("color", "32")
     style = config.get("style", "0")
+    prompt_name = config.get("prompt_name", "USER")
+    prompt_color = config.get("prompt_color", "32")
+    prompt_style = config.get("prompt_style", "1")
 
     banner_ascii = generate_banner(name).replace('\n', '\\n')
+    prompt_str = generate_prompt(prompt_name, prompt_color, prompt_style)
 
-    # Script para sobrescrever o bashrc com banner e a mensagem de boas-vindas:
-    custom_script = f"""
+    bashrc_addition = f"""
 {MARKER_START}
 clear
 echo -e "{banner_ascii}"
 echo -e "\\033[{style};{color}mSeja bem-vindo, {name}!\\033[0m"
+PS1='{prompt_str}'
 {MARKER_END}
 """
-
     with open(BASHRC_FILE, "a") as f:
-        f.write(custom_script)
+        f.write(bashrc_addition)
+
+def choose_option(options_dict, title):
+    type_print(title)
+    options = list(options_dict.keys())
+    for i, option in enumerate(options, 1):
+        print(f"{i} - {option}")
+    while True:
+        choice = input("Escolha uma opção pelo número: ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(options):
+                return options[idx]
+        type_print("Opção inválida, tente novamente.")
 
 def menu(config):
     while True:
-        type_print("Menu: 1-Nome 2-Cor 3-Estilo 4-Sair e Salvar", "32", "1")
+        type_print("Menu de Personalização - Escolha uma opção:", "32", "1")
+        print("1 - Alterar nome do banner e boas-vindas")
+        print("2 - Escolher cor do banner e da mensagem")
+        print("3 - Escolher estilo do banner e da mensagem")
+        print("4 - Personalizar prompt (nome que aparece ao lado do cifrão)")
+        print("5 - Salvar e sair")
         choice = input("Opção: ").strip()
+
         if choice == "1":
-            name = input("Digite seu nome (para o banner): ").strip()
-            if name:
-                config["name"] = name
+            new_name = input("Digite o novo nome para o banner e mensagem: ").strip()
+            if new_name:
+                config["banner_name"] = new_name.upper()
         elif choice == "2":
-            for i, c in enumerate(COLORS.keys(), 1):
-                print(f"{i} - {c}")
-            cchoice = input("Escolha cor (número): ").strip()
-            try:
-                ckey = list(COLORS.keys())[int(cchoice)-1]
-                config["color"] = COLORS[ckey]
-            except:
-                type_print("Cor inválida.", "31")
+            cor = choose_option(COLORS, "Escolha a cor do texto:")
+            config["color"] = COLORS[cor]
         elif choice == "3":
-            for i, s in enumerate(STYLES.keys(), 1):
-                print(f"{i} - {s}")
-            schoice = input("Escolha estilo (número): ").strip()
-            try:
-                skey = list(STYLES.keys())[int(schoice)-1]
-                config["style"] = STYLES[skey]
-            except:
-                type_print("Estilo inválido.", "31")
+            estilo = choose_option(STYLES, "Escolha o estilo do texto:")
+            config["style"] = STYLES[estilo]
         elif choice == "4":
+            prompt_name = input("Digite o nome para o prompt (exibido dentro da caixinha): ").strip()
+            if prompt_name:
+                config["prompt_name"] = prompt_name.upper()
+            prompt_color = choose_option(COLORS, "Escolha a cor do prompt:")
+            config["prompt_color"] = COLORS[prompt_color]
+            prompt_style = choose_option(STYLES, "Escolha o estilo do prompt:")
+            config["prompt_style"] = STYLES[prompt_style]
+        elif choice == "5":
             save_config(config)
             update_bashrc(config)
-            type_print("Configurações salvas e bashrc atualizado! Reinicie o Termux.", "32")
+            type_print("Configurações salvas e bashrc atualizado! Reinicie o Termux para ver as mudanças.", "32")
             break
         else:
-            type_print("Opção inválida.", "31")
+            type_print("Opção inválida, tente novamente.")
 
 def main():
     os.system("clear")
     show_banner()
     show_spec()
     config = load_config()
+
+    # Definir valores padrão caso não existam
+    if "banner_name" not in config:
+        config["banner_name"] = "USUARIO"
+    if "color" not in config:
+        config["color"] = COLORS["Verde"]
+    if "style" not in config:
+        config["style"] = STYLES["Normal"]
+    if "prompt_name" not in config:
+        config["prompt_name"] = "USER"
+    if "prompt_color" not in config:
+        config["prompt_color"] = COLORS["Verde"]
+    if "prompt_style" not in config:
+        config["prompt_style"] = STYLES["Negrito"]
+
     menu(config)
 
 if __name__ == "__main__":
