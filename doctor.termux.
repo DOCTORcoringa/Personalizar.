@@ -1,0 +1,152 @@
+#!/bin/bash
+
+ARQ_CONFIG="$HOME/.termux_config"
+
+# Instalar figlet se necessário
+if ! command -v figlet &> /dev/null; then
+  pkg update -y && pkg install figlet -y
+fi
+
+# Fontes 3D hack para o banner
+fontes=(
+  "3d"
+  "doom"
+  "larry3d"
+  "starwars"
+  "cybermedium"
+  "speed"
+)
+
+# Cores frias e vibrantes
+declare -A cores=(
+  ["Ciano"]="36"
+  ["Azul"]="34"
+  ["Verde"]="32"
+  ["Magenta"]="35"
+  ["Amarelo"]="33"
+  ["Branco"]="37"
+  ["Azul Brilhante"]="94"
+  ["Verde Brilhante"]="92"
+  ["Ciano Brilhante"]="96"
+  ["Magenta Brilhante"]="95"
+)
+
+# Entrada do usuário
+echo "Digite seu nome para o banner:"
+read nome_usuario
+
+echo "Escolha a fonte do banner (estilo 3D/hack):"
+select fonte_escolhida in "${fontes[@]}"; do
+  [[ -n "$fonte_escolhida" ]] && break
+  echo "Escolha uma opção válida."
+done
+
+echo "Escolha a cor do banner:"
+select cor_banner in "${!cores[@]}"; do
+  if [[ -n "$cor_banner" ]]; then
+    cor_banner_codigo=${cores[$cor_banner]}
+    break
+  fi
+done
+
+echo "Escolha a cor do prompt (fixo estilo Falcon hack):"
+select cor_prompt in "${!cores[@]}"; do
+  if [[ -n "$cor_prompt" ]]; then
+    cor_prompt_codigo=${cores[$cor_prompt]}
+    break
+  fi
+done
+
+echo "Quer definir uma senha para abrir o Termux? (s/n)"
+read resp_senha
+if [[ "$resp_senha" =~ ^[sS]$ ]]; then
+  echo "Digite a senha:"
+  read -s senha
+else
+  senha=""
+fi
+
+# Salvar configurações
+echo "NOME='$nome_usuario'" > $ARQ_CONFIG
+echo "SENHA='$senha'" >> $ARQ_CONFIG
+echo "COR_BANNER='$cor_banner_codigo'" >> $ARQ_CONFIG
+echo "COR_PROMPT='$cor_prompt_codigo'" >> $ARQ_CONFIG
+echo "FONTE_BANNER='$fonte_escolhida'" >> $ARQ_CONFIG
+
+# Atualizar .bashrc com funções e configurações
+cat > $HOME/.bashrc << 'EOF'
+source ~/.termux_config
+clear
+
+# Função de digitação animada com quebras (para não lotar tela)
+typed_text() {
+  local texto="$1"
+  local delay=${2:-0.07}
+  local linha=""
+  local max_linhas=5
+  local linha_atual=0
+
+  for ((i=0; i<${#texto}; i++)); do
+    linha+="${texto:$i:1}"
+    echo -ne "${texto:$i:1}"
+    sleep $delay
+    # Quebra de linha a cada 50 caracteres para evitar overflow
+    if (( (i + 1) % 50 == 0 )); then
+      echo ""
+      linha=""
+      ((linha_atual++))
+      if (( linha_atual == max_linhas )); then
+        echo -n "Pressione Enter para continuar..."
+        read
+        clear
+        linha_atual=0
+      fi
+    fi
+  done
+  echo ""
+}
+
+# Mensagem animada criativa do criador com pausas e quebras
+echo -e "\e[35m"  # Magenta vibrante
+typed_text "Criado por Doctor Coringa Lunático..."
+typed_text "O mestre das linhas de código obscuras."
+typed_text "Aqui começa sua jornada hacker."
+echo ""
+typed_text "Aproveite e personalize sua área de trabalho ao máximo!"
+echo -e "\e[0m"
+sleep 1
+clear
+
+# Banner 3D com cor e fonte escolhidas
+echo -e "\e[1;${COR_BANNER}m"
+figlet -f "$FONTE_BANNER" "$NOME"
+echo -e "\e[0m"
+
+# Autenticação por senha (3 tentativas)
+if [ ! -z "$SENHA" ]; then
+  for i in {1..3}; do
+    echo -n "Digite a senha para continuar: "
+    read -s input_senha
+    echo
+    if [ "$input_senha" = "$SENHA" ]; then
+      break
+    else
+      echo "Senha incorreta. Tente novamente."
+    fi
+    if [ $i -eq 3 ]; then
+      echo "Falha na autenticação, saindo..."
+      exit 1
+    fi
+  done
+fi
+
+# Prompt estilo hack magnético/falcon com nome colorido fixo
+PS1="\[\033[1;${COR_PROMPT}m\]$NOME \[\033[0m\]\$ "
+
+# Limpa a tela após cada comando para manter área limpa e organizada
+PROMPT_COMMAND='clear'
+
+EOF
+
+echo "Configuração salva com mensagem criativa, banner 3D e prompt hack."
+echo "Reinicie o Termux para ver as mudanças aplicar."
