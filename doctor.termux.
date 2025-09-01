@@ -57,6 +57,11 @@ def ask_password():
             console.print("[red]Senhas não conferem! Tente novamente.[/]")
     return ""
 
+def get_prompt_name(default_name):
+    console.print(Panel("Digite o texto do prompt (linha de comando):", style="bold magenta"))
+    texto_prompt = Prompt.ask(f"Texto do prompt (padrão: {default_name})", default=default_name)
+    return texto_prompt
+
 def create_panel(name, font, color):
     f = Figlet(font=font)
     ascii_art = f.renderText(name)
@@ -68,9 +73,13 @@ def create_panel(name, font, color):
     )
     console.print(painel)
 
-def save_bashrc(name, font, senha):
+def save_bashrc(name, font, prompt_name, senha):
+    home = os.path.expanduser("~")
+    flag_msg_file = os.path.join(home, ".termux_msg_flag")
+
     bashrc_content = f"""
 clear
+
 # Arquivo .bashrc gerado pelo painel_termux.py
 
 typed_text() {{
@@ -83,13 +92,15 @@ typed_text() {{
   echo ""
 }}
 
-echo -e "\\e[1;32m"
-typed_text "Criado por Doctor Coringa Lunático..."
-typed_text "O mestre das linhas de código obscuras."
-typed_text "Aqui começa sua jornada hacker."
-echo -e "\\e[0m"
-sleep 1
-clear
+# Mensagem do criador só aparece se flag não existir
+if [ ! -f "{flag_msg_file}" ]; then
+  typed_text "Criado por Doctor Coringa Lunático..."
+  typed_text "O mestre das linhas de código obscuras."
+  typed_text "Aqui começa sua jornada hacker."
+  touch "{flag_msg_file}"
+  sleep 1
+  clear
+fi
 
 figlet -f "{font}" "{name}"
 
@@ -109,18 +120,20 @@ if [ ! -z "{senha}" ]; then
   done
 fi
 
-export PS1="\\[\\033[1;32m\\]{name} \\[\\033[0m\\]\\$ "
+# Prompt estilizado com nome escolhido
+export PS1="\\[\\033[1;32m\\]{prompt_name} \\[\\033[0m\\]\\$ "
 """
 
-    bashrc_path = os.path.join(os.path.expanduser("~"), ".bashrc")
-    with open(bashrc_path, "w") as f:
-        f.write(bashrc_content)
+    bashrc_path = os.path.join(home, ".bashrc")
+    with open(bashrc_path, "w") as file:
+        file.write(bashrc_content)
 
 def main_menu():
     current_name = "Convidado"
     current_font = FONT_OPTIONS[1]
     current_color = PANEL_COLORS[1]
     current_password = ""
+    current_prompt_name = current_name
 
     show_creator_message()
 
@@ -137,11 +150,12 @@ def main_menu():
         console.print(f"  [2]) Alterar Fonte do Banner (Atual: [bold green]{current_font}[/bold green])")
         console.print(f"  [3]) Alterar Cor do Painel (Atual: [bold green]{current_color}[/bold green])")
         console.print(f"  [4]) Configurar Senha (Atual: [bold red]{'Não configurada' if not current_password else 'Configurada'}[/bold red])")
-        console.print("  [5]) Visualizar Painel")
-        console.print("  [6]) Salvar e Sair")
-        console.print("  [7]) Sair sem Salvar\n")
+        console.print(f"  [5]) Alterar Texto do Prompt (Atual: [bold magenta]{current_prompt_name}[/bold magenta])")
+        console.print("  [6]) Visualizar Painel")
+        console.print("  [7]) Salvar e Sair")
+        console.print("  [8]) Sair sem Salvar\n")
 
-        choice = IntPrompt.ask("Escolha uma opção", choices=[str(i) for i in range(1,8)], show_choices=False)
+        choice = IntPrompt.ask("Escolha uma opção", choices=[str(i) for i in range(1,9)], show_choices=False)
 
         if choice == 1:
             current_name = get_name()
@@ -152,15 +166,17 @@ def main_menu():
         elif choice == 4:
             current_password = ask_password()
         elif choice == 5:
+            current_prompt_name = get_prompt_name(current_prompt_name)
+        elif choice == 6:
             clear_screen()
             create_panel(current_name, current_font, current_color)
             Prompt.ask("\nPressione Enter para voltar ao menu")
-        elif choice == 6:
+        elif choice == 7:
             clear_screen()
-            save_bashrc(current_name, current_font, current_password)
+            save_bashrc(current_name, current_font, current_prompt_name, current_password)
             console.print("[green]Configuração salva! Reinicie o Termux para aplicar.[/green]\n")
             break
-        elif choice == 7:
+        elif choice == 8:
             console.print("[yellow]Saindo sem salvar as alterações.[/yellow]\n")
             break
 
