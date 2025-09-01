@@ -1,78 +1,92 @@
-#!/usr/bin/env python3
-import os
+#!/bin/bash
 
-def escolher_lista_pergunta(pergunta, opcoes):
-    print(pergunta)
-    for i, opcao in enumerate(opcoes, 1):
-        print(f"{i}) {opcao}")
-    while True:
-        escolha = input(f"Digite o número (1-{len(opcoes)}): ").strip()
-        if escolha.isdigit():
-            num = int(escolha)
-            if 1 <= num <= len(opcoes):
-                return opcoes[num-1]
-        print(f"Opção inválida. Digite de 1 a {len(opcoes)}.")
+ARQ_CONFIG="$HOME/.termux_config"
+BASHRC="$HOME/.bashrc"
 
-def sim_ou_nao(pergunta):
-    while True:
-        r = input(pergunta + ' (s/n): ').lower().strip()
-        if r in ['s', 'n']:
-            return r == 's'
-        print("Resposta inválida. Digite 's' para sim ou 'n' para não.")
+# Função para instalar dialog se não instalado
+instala_dialog() {
+  if ! command -v dialog &> /dev/null; then
+    pkg update -y
+    pkg install -y dialog figlet
+  fi
+}
 
-def main():
-    fontes = ["3d", "doom", "larry3d", "starwars", "cybermedium", "speed"]
-    cores_dict = {
-        "1": ("Ciano", "36"),
-        "2": ("Azul", "34"),
-        "3": ("Verde", "32"),
-        "4": ("Magenta", "35"),
-        "5": ("Amarelo", "33"),
-        "6": ("Branco", "37"),
-        "7": ("Azul Brilhante", "94"),
-        "8": ("Verde Brilhante", "92"),
-        "9": ("Ciano Brilhante", "96"),
-        "10": ("Magenta Brilhante", "95")
-    }
-    cores = [v[0] for v in cores_dict.values()]
+instala_dialog
 
-    nome = input("Digite seu nome para o banner: ").strip()
-    fonte = escolher_lista_pergunta("Escolha a fonte do banner (estilo 3D/hack):", fontes)
-    cor_banner = escolher_lista_pergunta("Escolha a cor do banner:", cores)
-    cor_prompt = escolher_lista_pergunta("Escolha a cor do prompt (estilo Falcon hack):", cores)
-    
-    senha = ""
-    if sim_ou_nao("Quer definir uma senha para abrir o Termux?"):
-        import getpass
-        senha = getpass.getpass("Digite a senha (não aparece ao digitar): ").strip()
+# Mensagem estilizada inicial
+dialog --title "Bem-vindo(a) ao Setup Termux" --msgbox "Criado por Doctor Coringa Lunático...\n\nO mestre das linhas de código obscuras.\n\nAqui começa sua jornada hacker.\n\nAproveite e personalize sua área de trabalho ao máximo!" 12 50
 
-    COR_BANNER_CODIGO = [v[1] for v in cores_dict.values() if v[0] == cor_banner][0]
-    COR_PROMPT_CODIGO = [v[1] for v in cores_dict.values() if v[0] == cor_prompt][0]
+# Fonte do banner (menu)
+fontes=("3d" "doom" "larry3d" "starwars" "cybermedium" "speed")
+fonte_escolhida=$(dialog --clear --menu "Escolha a fonte do banner (use setas + Enter):" 15 50 6 \
+1 "${fontes[0]}" \
+2 "${fontes[1]}" \
+3 "${fontes[2]}" \
+4 "${fontes[3]}" \
+5 "${fontes[4]}" \
+6 "${fontes[5]}" 3>&1 1>&2 2>&3 3>&-)
+fonte_escolhida="${fontes[$((fonte_escolhida-1))]}"
 
-    home = os.path.expanduser("~")
-    config_path = os.path.join(home, ".termux_config")
-    bashrc_path = os.path.join(home, ".bashrc")
+# Cores disponíveis (nome e código ANSI)
+cores=( "Ciano:36" "Azul:34" "Verde:32" "Magenta:35" "Amarelo:33" "Branco:37" "Azul Brilhante:94" "Verde Brilhante:92" "Ciano Brilhante:96" "Magenta Brilhante:95" )
 
-    with open(config_path, "w") as f:
-        f.write(f"NOME='{nome}'\n")
-        f.write(f"SENHA='{senha}'\n")
-        f.write(f"COR_BANNER='{COR_BANNER_CODIGO}'\n")
-        f.write(f"COR_PROMPT='{COR_PROMPT_CODIGO}'\n")
-        f.write(f"FONTE_BANNER='{fonte}'\n")
+# Função helper para criar menu cores no dialog
+menu_cores() {
+  local prompt="$1"
+  local height=15
+  local width=50
+  local menu_height=10
+  local items=()
+  for i in "${!cores[@]}"; do
+    nome="${cores[$i]%%:*}"
+    items+=("$((i+1))" "$nome")
+  done
+  dialog --clear --menu "$prompt (setas + Enter):" $height $width $menu_height "${items[@]}" 3>&1 1>&2 2>&3 3>&-
+}
 
-    bashrc_content = f'''
+cor_banner_menu=$(menu_cores "Escolha a cor do banner:")
+cor_prompt_menu=$(menu_cores "Escolha a cor do prompt:")
+
+# Extrair só código ANSI da escolha
+cor_banner_codigo="${cores[$((cor_banner_menu-1))]}"
+cor_banner_codigo="${cor_banner_codigo##*:}"
+
+cor_prompt_codigo="${cores[$((cor_prompt_menu-1))]}"
+cor_prompt_codigo="${cor_prompt_codigo##*:}"
+
+# Nome para banner (entrada simples)
+nome_usuario=$(dialog --inputbox "Digite seu nome para o banner:" 8 40 3>&1 1>&2 2>&3 3>&-)
+
+# Perguntar se quer senha
+senha=""
+quer_senha=$(dialog --yesno "Quer definir uma senha para abrir o Termux?" 7 50; echo $?)
+if [ $quer_senha -eq 0 ]; then
+  senha=$(dialog --insecure --passwordbox "Digite a senha para o Termux:" 8 40 3>&1 1>&2 2>&3 3>&-)
+fi
+
+# Gravar configurações no .termux_config
+{
+  echo "NOME='$nome_usuario'"
+  echo "SENHA='$senha'"
+  echo "COR_BANNER='$cor_banner_codigo'"
+  echo "COR_PROMPT='$cor_prompt_codigo'"
+  echo "FONTE_BANNER='$fonte_escolhida'"
+} > "$ARQ_CONFIG"
+
+# Criar .bashrc personalizado
+cat > "$BASHRC" << EOF
 source ~/.termux_config
 clear
 
-typed_text() {{
-  texto="$1"
-  delay={{2:-0.07}}
-  for ((i=0; i<{{#texto}}; i++)); do
-    echo -n "{{{{texto:i:1}}}}"
-    sleep $delay
+typed_text() {
+  texto="\$1"
+  delay=\${2:-0.07}
+  for ((i=0; i<\${#texto}; i++)); do
+    echo -n "\${texto:i:1}"
+    sleep \$delay
   done
   echo ""
-}}
+}
 
 echo -e "\\e[35m"
 typed_text "Criado por Doctor Coringa Lunático..."
@@ -84,36 +98,30 @@ echo -e "\\e[0m"
 sleep 1
 clear
 
-echo -e "\\e[1;${{COR_BANNER}}m"
-figlet -f "${{FONTE_BANNER}}" "${{NOME}}"
+echo -e "\\e[1;\${COR_BANNER}m"
+figlet -f "\$FONTE_BANNER" "\$NOME"
 echo -e "\\e[0m"
 
-if [ ! -z "${{SENHA}}" ]; then
-  for i in {{1..3}}; do
+if [ ! -z "\$SENHA" ]; then
+  for i in {1..3}; do
     echo -n "Digite a senha para continuar: "
     read -s input_senha
     echo
-    if [ "$input_senha" = "${{SENHA}}" ]; then
+    if [ "\$input_senha" = "\$SENHA" ]; then
       break
     else
       echo "Senha incorreta. Tente novamente."
     fi
-    if [ $i -eq 3 ]; then
+    if [ \$i -eq 3 ]; then
       echo "Falha na autenticação, saindo..."
       exit 1
     fi
   done
 fi
 
-PS1="\\[\\033[1;${{COR_PROMPT}}m\\]${{NOME}} \\[\\033[0m\\]\\$ "
+PS1="\\[\\033[1;\${COR_PROMPT}m\\]\$NOME \\[\\033[0m\\]\\$ "
 PROMPT_COMMAND='clear'
-'''
+EOF
 
-    with open(bashrc_path, "w") as f:
-        f.write(bashrc_content)
-
-    print("Configuração salva com sucesso!")
-    print("Reinicie o Termux para aplicar as alterações e ver seu painel personalizado.")
-
-if __name__ == "__main__":
-    main()
+dialog --msgbox "Configuração concluída!\n\nReinicie o Termux para ver seu terminal personalizado.\n\nHappy hacking!" 8 50
+clear
