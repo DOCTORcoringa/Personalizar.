@@ -15,12 +15,25 @@ PANEL_COLORS = [
     'red', 'green', 'blue', 'yellow', 'purple', 'cyan', 'white'
 ]
 
+# Variáveis para armazenar as escolhas do usuário
+current_name = "Convidado"
+current_font = FONT_OPTIONS[1]
+current_color = PANEL_COLORS[0]
+current_prompt_color = "32" # Verde fixo
+current_password = ""
+
 def clear_screen():
     os.system('clear' if os.name == 'posix' else 'cls')
 
+def get_name():
+    """Pede ao usuário para digitar o nome para o banner."""
+    console.print(Panel("Digite seu nome para o banner:", style="bold blue"))
+    return Prompt.ask(">>>")
+
 def select_font():
+    """Permite ao usuário escolher a fonte do banner."""
     console.print("\n[bold]Escolha a fonte do banner:[/bold]")
-    for k,v in FONT_OPTIONS.items():
+    for k, v in FONT_OPTIONS.items():
         console.print(f"  [cyan]{k}[/cyan]) {v.capitalize()}")
     while True:
         escolha = IntPrompt.ask("Digite o número da fonte", default=1)
@@ -29,6 +42,7 @@ def select_font():
         console.print("[red]Opção inválida! Tente novamente.[/]")
 
 def select_color():
+    """Permite ao usuário escolher a cor do painel."""
     console.print("\n[bold]Escolha a cor do painel:[/bold]")
     for i, color in enumerate(PANEL_COLORS, 1):
         console.print(f"  [{color}]{i}) {color.capitalize()}[/]")
@@ -38,37 +52,30 @@ def select_color():
             return PANEL_COLORS[escolha - 1]
         console.print("[red]Opção inválida! Tente novamente.[/]")
 
-def get_name():
-    console.print(Panel("Digite seu nome para o banner:", style="bold blue"))
-    return Prompt.ask(">>>")
-
 def ask_password():
+    """Permite ao usuário criar uma senha para proteger o Termux."""
     resp = Prompt.ask("Deseja criar uma senha para proteger o Termux? (s/n)", choices=["s","n"], default="n")
     if resp == "s":
         return Prompt.ask("Digite a senha", password=True)
     return ""
 
 def create_panel(name, font, color):
+    """Cria e exibe o painel de visualização."""
     f = Figlet(font=font)
     ascii_art = f.renderText(name)
-    painel = Panel(ascii_art + f"\nBem-vindo(a), [bold]{name}[/bold]!", title=f"[{color}]Painel Personalizado[/]", subtitle="Crie seu terminal", style=color)
+    painel = Panel(
+        ascii_art,
+        title=f"[{color}]Painel de Pré-visualização[/]",
+        subtitle=f"Seu nome, [bold]{name}[/bold], com a fonte '{font.capitalize()}'",
+        style=color
+    )
     console.print(painel)
 
-def save_config(name, font, color, prompt_color, senha):
-    home = os.path.expanduser("~")
-    config_path = os.path.join(home, ".termux_config")
-    bashrc_path = os.path.join(home, ".bashrc")
-
-    with open(config_path, "w") as f:
-        f.write(f"NOME='{name}'\n")
-        f.write(f"SENHA='{senha}'\n")
-        f.write(f"COR_BANNER='32'\n")  # Verde fixo para banner para simplificação
-        f.write(f"COR_PROMPT='32'\n")  # Verde fixo para prompt
-        f.write(f"FONTE_BANNER='{font}'\n")
-
+def save_bashrc(name, font, prompt_color, senha):
+    """Gera e salva o arquivo .bashrc com as configurações."""
     bashrc_content = f"""
-source ~/.termux_config
 clear
+# Este arquivo .bashrc foi gerado pelo painel_termux.py
 
 typed_text() {{
   texto="$1"
@@ -80,7 +87,7 @@ typed_text() {{
   echo ""
 }}
 
-echo -e "\\e[32m"
+echo -e "\\e[1;32m"
 typed_text "Criado por Doctor Coringa Lunático..."
 typed_text "O mestre das linhas de código obscuras."
 typed_text "Aqui começa sua jornada hacker."
@@ -88,16 +95,14 @@ echo -e "\\e[0m"
 sleep 1
 clear
 
-echo -e "\\e[1;32m"
-figlet -f "$FONTE_BANNER" "$NOME"
-echo -e "\\e[0m"
+# Usa figlet para gerar o banner
+figlet -f "{font}" "{name}"
 
-if [ ! -z "$SENHA" ]; then
+if [ ! -z "{senha}" ]; then
   for i in {{1..3}}; do
-    echo -n "Digite a senha para continuar: "
-    read -s input_senha
+    read -s -p "Digite a senha para continuar: " input_senha
     echo
-    if [ "$input_senha" = "$SENHA" ]; then
+    if [ "$input_senha" = "{senha}" ]; then
       break
     else
       echo "Senha incorreta. Tente novamente."
@@ -109,24 +114,56 @@ if [ ! -z "$SENHA" ]; then
   done
 fi
 
-PS1="\\[\\033[1;32m\\]$NOME \\[\\033[0m\\]\\$ "
+export PS1="\\[\\033[1;{prompt_color}m\\]$NOME \\[\\033[0m\\]\\$ "
 """
 
+    home = os.path.expanduser("~")
+    bashrc_path = os.path.join(home, ".bashrc")
     with open(bashrc_path, "w") as f:
         f.write(bashrc_content)
 
-def main():
-    clear_screen()
-    console.print(Panel("[bold cyan]Painel de Personalização do Termux[/bold cyan]", style="green"))
-    name = get_name()
-    font = select_font()
-    color = select_color()
-    prompt_color = select_color()
-    senha = ask_password()
-    clear_screen()
-    create_panel(name, font, color)
-    save_config(name, font, color, prompt_color, senha)
-    console.print("\n[green]Configuração salva! Reinicie o Termux para aplicar.[/green]\n")
+def main_menu():
+    """Exibe o menu principal e gerencia as escolhas do usuário."""
+    global current_name, current_font, current_color, current_password
+    
+    while True:
+        clear_screen()
+        console.print(Panel(
+            "[bold cyan]Painel de Personalização do Termux[/bold cyan]\n",
+            subtitle="Selecione uma opção para personalizar seu terminal",
+            style="green"
+        ))
+        
+        console.print(f"  [1]) Alterar Nome (Atual: [bold green]{current_name}[/bold green])")
+        console.print(f"  [2]) Alterar Fonte do Banner (Atual: [bold green]{current_font}[/bold green])")
+        console.print(f"  [3]) Alterar Cor do Painel (Atual: [bold green]{current_color}[/bold green])")
+        console.print(f"  [4]) Configurar Senha (Atual: [bold red]{'Não configurada' if not current_password else 'Configurada'}[/bold red])")
+        console.print("  [5]) Visualizar Painel")
+        console.print("  [6]) Salvar e Sair")
+        console.print("  [7]) Sair sem Salvar")
+        
+        choice = IntPrompt.ask("\nEscolha uma opção", choices=["1", "2", "3", "4", "5", "6", "7"])
+        
+        if choice == 1:
+            current_name = get_name()
+        elif choice == 2:
+            current_font = select_font()
+        elif choice == 3:
+            current_color = select_color()
+        elif choice == 4:
+            current_password = ask_password()
+        elif choice == 5:
+            clear_screen()
+            create_panel(current_name, current_font, current_color)
+            Prompt.ask("\nPressione Enter para voltar ao menu")
+        elif choice == 6:
+            clear_screen()
+            save_bashrc(current_name, current_font, current_prompt_color, current_password)
+            console.print("[green]Configuração salva! Reinicie o Termux para aplicar.[/green]\n")
+            break
+        elif choice == 7:
+            console.print("[yellow]Saindo sem salvar as alterações.[/yellow]\n")
+            break
 
 if __name__ == "__main__":
-    main()
+    main_menu()
