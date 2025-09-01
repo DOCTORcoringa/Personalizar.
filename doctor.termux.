@@ -1,125 +1,70 @@
-#!/usr/bin/env python3
-import curses
 import os
-import getpass
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Prompt, IntPrompt
+from pyfiglet import Figlet
 
-fontes = ["3d", "doom", "larry3d", "starwars", "cybermedium", "speed"]
-cores = {
-    "Ciano": "36",
-    "Azul": "34",
-    "Verde": "32",
-    "Magenta": "35",
-    "Amarelo": "33",
-    "Branco": "37",
-    "Azul Brilhante": "94",
-    "Verde Brilhante": "92",
-    "Ciano Brilhante": "96",
-    "Magenta Brilhante": "95"
+console = Console()
+
+# Configs de fontes e cores
+FONT_OPTIONS = {
+    1: 'standard', 2: 'slant', 3: 'block', 4: 'banner', 
+    5: '3d', 6: 'big', 7: 'doom'
 }
+PANEL_COLORS = [
+    'red', 'green', 'blue', 'yellow', 'purple', 'cyan', 'white'
+]
 
-def menu_select(stdscr, titulo, opcoes):
-    curses.curs_set(0)  # Ocultar cursor
-    stdscr.clear()
-    k = 0
-    pos = 0
+def clear_screen():
+    os.system('clear' if os.name == 'posix' else 'cls')
+
+def select_font():
+    console.print("\n[bold]Escolha a fonte do banner:[/bold]")
+    for k,v in FONT_OPTIONS.items():
+        console.print(f"  [cyan]{k}[/cyan]) {v.capitalize()}")
     while True:
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
-        stdscr.addstr(1, (w - len(titulo)) // 2, titulo, curses.A_BOLD | curses.A_UNDERLINE)
+        escolha = IntPrompt.ask("Digite o número da fonte", default=1)
+        if escolha in FONT_OPTIONS:
+            return FONT_OPTIONS[escolha]
+        console.print("[red]Opção inválida! Tente novamente.[/]")
 
-        for i, opcao in enumerate(opcoes):
-            x = 4
-            y = 3 + i
-            if i == pos:
-                stdscr.attron(curses.color_pair(1))
-                stdscr.addstr(y, x, f"> {opcao}")
-                stdscr.attroff(curses.color_pair(1))
-            else:
-                stdscr.addstr(y, x, "  " + opcao)
-        stdscr.refresh()
-
-        k = stdscr.getch()
-        if k == curses.KEY_UP:
-            pos = (pos - 1) % len(opcoes)
-        elif k == curses.KEY_DOWN:
-            pos = (pos + 1) % len(opcoes)
-        elif k in [curses.KEY_ENTER, ord('\n')]:
-            return opcoes[pos]
-
-def input_box(stdscr, prompt):
-    curses.echo()
-    stdscr.clear()
-    h, w = stdscr.getmaxyx()
-    stdscr.addstr(h//2, (w - len(prompt)) // 2, prompt)
-    stdscr.refresh()
-    entrada = stdscr.getstr(h//2 + 1, (w - 20) // 2, 20).decode()
-    curses.noecho()
-    return entrada
-
-def yes_no(stdscr, pergunta):
-    curses.curs_set(0)
-    stdscr.clear()
-    h, w = stdscr.getmaxyx()
-    pergunta_texto = pergunta + " (s/n)"
+def select_color():
+    console.print("\n[bold]Escolha a cor do painel:[/bold]")
+    for i, color in enumerate(PANEL_COLORS, 1):
+        console.print(f"  [{color}]{i}) {color.capitalize()}[/]")
     while True:
-        stdscr.clear()
-        stdscr.addstr(h//2, (w - len(pergunta_texto))//2, pergunta_texto)
-        stdscr.refresh()
-        k = stdscr.getch()
-        if k in [ord('s'), ord('S')]:
-            return True
-        elif k in [ord('n'), ord('N')]:
-            return False
+        escolha = IntPrompt.ask("Digite o número da cor", default=2)
+        if 1 <= escolha <= len(PANEL_COLORS):
+            return PANEL_COLORS[escolha - 1]
+        console.print("[red]Opção inválida! Tente novamente.[/]")
 
-def main(stdscr):
-    curses.start_color()
-    curses.use_default_colors()
-    curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_GREEN)
+def get_name():
+    console.print(Panel("Digite seu nome para o banner:", style="bold blue"))
+    return Prompt.ask(">>>")
 
-    # Mensagem inicial
-    stdscr.clear()
-    h, w = stdscr.getmaxyx()
-    mensagem = "Criado por Doctor Coringa Lunático\nO mestre das linhas de código obscuras\nAperte qualquer tecla para continuar..."
-    for idx, linha in enumerate(mensagem.split('\n')):
-        stdscr.addstr(h//2 - 1 + idx, (w - len(linha))//2, linha, curses.A_BOLD | curses.color_pair(1))
-    stdscr.refresh()
-    stdscr.getch()
+def ask_password():
+    resp = Prompt.ask("Deseja criar uma senha para proteger o Termux? (s/n)", choices=["s","n"], default="n")
+    if resp == "s":
+        return Prompt.ask("Digite a senha", password=True)
+    return ""
 
-    # Nome
-    nome = input_box(stdscr, "Digite seu nome para o banner:")
+def create_panel(name, font, color):
+    f = Figlet(font=font)
+    ascii_art = f.renderText(name)
+    painel = Panel(ascii_art + f"\nBem-vindo(a), [bold]{name}[/bold]!", title=f"[{color}]Painel Personalizado[/]", subtitle="Crie seu terminal", style=color)
+    console.print(painel)
 
-    # Fonte
-    fonte = menu_select(stdscr, "Escolha a fonte do banner:", fontes)
-
-    # Cor do banner
-    cor_banner = menu_select(stdscr, "Escolha a cor do banner:", list(cores.keys()))
-
-    # Cor do prompt
-    cor_prompt = menu_select(stdscr, "Escolha a cor do prompt:", list(cores.keys()))
-
-    # Pergunta senha
-    quer_senha = yes_no(stdscr, "Deseja definir uma senha para proteger o Termux?")
-
-    senha = ""
-    if quer_senha:
-        curses.echo()
-        stdscr.clear()
-        stdscr.addstr(h//2, (w - 30)//2, "Digite a senha (não aparece enquanto digita):")
-        stdscr.refresh()
-        senha = stdscr.getstr(h//2 + 1, (w - 20)//2, 20).decode()
-        curses.noecho()
-
-    # Gravar arquivos
+def save_config(name, font, color, prompt_color, senha):
     home = os.path.expanduser("~")
     config_path = os.path.join(home, ".termux_config")
     bashrc_path = os.path.join(home, ".bashrc")
 
     with open(config_path, "w") as f:
-        f.write(f"NOME='{nome}'\n")
+        f.write(f"NOME='{name}'\n")
         f.write(f"SENHA='{senha}'\n")
-        f.write(f"COR_BANNER='{cores[cor_banner]}'\n")
-        f.write(f"COR_PROMPT='{cores[cor_prompt]}'\n")
-        f.write(f"FONTE_BANNER='{fonte}'\n")
+        f.write(f"COR_BANNER='32'\n")  # Verde fixo para banner para simplificação
+        f.write(f"COR_PROMPT='32'\n")  # Verde fixo para prompt
+        f.write(f"FONTE_BANNER='{font}'\n")
 
     bashrc_content = f"""
 source ~/.termux_config
@@ -143,16 +88,16 @@ echo -e "\\e[0m"
 sleep 1
 clear
 
-echo -e "\\e[1;${{COR_BANNER}}m"
-figlet -f "${{FONTE_BANNER}}" "${{NOME}}"
+echo -e "\\e[1;32m"
+figlet -f "$FONTE_BANNER" "$NOME"
 echo -e "\\e[0m"
 
-if [ ! -z "${{SENHA}}" ]; then
+if [ ! -z "$SENHA" ]; then
   for i in {{1..3}}; do
     echo -n "Digite a senha para continuar: "
     read -s input_senha
     echo
-    if [ "$input_senha" = "${{SENHA}}" ]; then
+    if [ "$input_senha" = "$SENHA" ]; then
       break
     else
       echo "Senha incorreta. Tente novamente."
@@ -164,17 +109,24 @@ if [ ! -z "${{SENHA}}" ]; then
   done
 fi
 
-PS1="\\[\\033[1;${{COR_PROMPT}}m\\]${{NOME}} \\[\\033[0m\\]\\$ "
-# PROMPT_COMMAND='clear' # removido para não limpar a tela a todo momento
+PS1="\\[\\033[1;32m\\]$NOME \\[\\033[0m\\]\\$ "
 """
 
     with open(bashrc_path, "w") as f:
         f.write(bashrc_content)
 
-    stdscr.clear()
-    stdscr.addstr(h//2, (w - 30)//2, "Configuração concluída! Reinicie o Termux.")
-    stdscr.refresh()
-    stdscr.getch()
+def main():
+    clear_screen()
+    console.print(Panel("[bold cyan]Painel de Personalização do Termux[/bold cyan]", style="green"))
+    name = get_name()
+    font = select_font()
+    color = select_color()
+    prompt_color = select_color()
+    senha = ask_password()
+    clear_screen()
+    create_panel(name, font, color)
+    save_config(name, font, color, prompt_color, senha)
+    console.print("\n[green]Configuração salva! Reinicie o Termux para aplicar.[/green]\n")
 
 if __name__ == "__main__":
-    curses.wrapper(main)
+    main()
