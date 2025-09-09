@@ -23,10 +23,12 @@ FONT_OPTIONS = {
 }
 PANEL_COLORS = ['red', 'green', 'blue', 'yellow', 'purple', 'cyan', 'white']
 
+
 # --- Salvar / Carregar ---
 def salvar_config(config):
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
+
 
 def carregar_config():
     if os.path.exists(CONFIG_FILE):
@@ -46,6 +48,7 @@ def carregar_config():
         config["color"] = "green"
     return config
 
+
 # --- Gerar Banner ---
 def gerar_banner(config):
     try:
@@ -55,6 +58,7 @@ def gerar_banner(config):
         ascii_art = f"Banner para {config['name']} (fonte não encontrada)"
     with open(BANNER_FILE, "w") as f_banner:
         f_banner.write(ascii_art)
+
 
 # --- Pedir senha se configurada ---
 def pedir_senha(config):
@@ -67,6 +71,7 @@ def pedir_senha(config):
         console.print("[bold red]Acesso negado![/bold red]")
         sys.exit(1)
     return True
+
 
 # --- Configuração automática para abrir no Termux ---
 def configurar_autostart(config):
@@ -82,6 +87,7 @@ def configurar_autostart(config):
         f.write(f'cat "{BANNER_FILE}"\n')
         f.write(f'export PS1="{config["prompt"]} $ "\n')
 
+
 # --- Resetar para padrão de fábrica ---
 def resetar_padrao():
     if os.path.exists(BACKUP_BASHRC_FILE):
@@ -94,6 +100,7 @@ def resetar_padrao():
         with open(BASHRC_FILE, "w") as f:
             f.write("")
         console.print("[yellow]Bashrc limpo. Nenhum backup encontrado.[/yellow]")
+
     if os.path.exists(CONFIG_FILE):
         os.remove(CONFIG_FILE)
     if os.path.exists(BANNER_FILE):
@@ -101,12 +108,13 @@ def resetar_padrao():
     console.print("[green]Configurações do painel removidas.[/green]")
     sleep(2)
 
+
 # --- Menu Principal ---
 def main_menu():
     config = carregar_config()
     if not os.path.exists(BANNER_FILE):
         gerar_banner(config)
-    console.clear()
+    console.clear()  # limpa tela antes de abrir o painel
 
     while True:
         layout = Layout()
@@ -123,7 +131,7 @@ def main_menu():
                   title="Seu Painel", border_style=config["color"])
         )
 
-        # Menu interativo
+        # Menu
         menu_panel = Panel.fit(
             "\n".join([
                 f"[bold cyan]1[/bold cyan]) Alterar Nome (Atual: [bold green]{config['name']}[/bold green])",
@@ -142,10 +150,12 @@ def main_menu():
         layout["menu"].update(menu_panel)
 
         console.print(layout)
+
         choice = IntPrompt.ask("[bold magenta]Escolha uma opção[/bold magenta]", choices=[str(i) for i in range(1, 10)], show_choices=False)
 
         if choice == 1:
-            config["name"] = Prompt.ask(Panel("[bold green]Digite o nome[/bold green]", border_style="green"))
+            console.print(Panel("[bold green]Digite o nome[/bold green]", border_style="green"))
+            config["name"] = Prompt.ask(">>")
             gerar_banner(config)
         elif choice == 2:
             console.print(Panel("\n".join(f"{k}) {v}" for k, v in FONT_OPTIONS.items()), title="Escolha a Fonte", border_style="magenta"))
@@ -156,6 +166,7 @@ def main_menu():
             console.print(Panel("\n".join(f"{i}) {c}" for i, c in enumerate(PANEL_COLORS, 1)), title="Escolha a Cor", border_style="cyan"))
             esc = IntPrompt.ask("[bold cyan]Escolha a cor[/bold cyan]", choices=[str(i) for i in range(1, len(PANEL_COLORS)+1)])
             config["color"] = PANEL_COLORS[int(esc)-1]
+            gerar_banner(config)
         elif choice == 4:
             resp = Prompt.ask("Deseja criar senha? (s/n)", choices=["s","n"], default="n")
             if resp == "s":
@@ -179,7 +190,6 @@ def main_menu():
                     console.print("[red]Senha incorreta. Não foi possível remover.[/red]")
         elif choice == 7:
             console.clear()
-            gerar_banner(config)
             with open(BANNER_FILE, "r") as f:
                 console.print(Align.center(f.read()), style=config["color"])
             Prompt.ask("\nPressione Enter para voltar")
@@ -193,10 +203,10 @@ def main_menu():
         elif choice == 9:
             salvar_config(config)
             configurar_autostart(config)
-            console.clear()
             console.print("[yellow]Configurações salvas! Ao abrir o Termux só aparecerá o que você escolheu.[/yellow]")
             sleep(2)
-            break
+            sys.exit(0)
+
 
 # --- Modo auto (quando abrir o Termux) ---
 def auto_start():
@@ -205,6 +215,7 @@ def auto_start():
     console.clear()
     with open(BANNER_FILE, "r") as f:
         console.print(Align.center(f.read()), style=config["color"])
+
 
 if __name__ == "__main__":
     if "--auto" in sys.argv:
