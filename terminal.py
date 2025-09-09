@@ -114,6 +114,11 @@ def resetar_padrao():
 # --- Menu Principal ---
 def main_menu():
     config = carregar_config()
+
+    # --- Garantir que o banner exista ---
+    if not os.path.exists(BANNER_FILE):
+        gerar_banner(config)
+
     console.clear()  # Limpa a tela antes de abrir o painel
 
     while True:
@@ -126,7 +131,10 @@ def main_menu():
         # Banner estilizado
         with open(BANNER_FILE, "r") as f:
             banner_text = f.read()
-        layout["banner"].update(Panel(Text(banner_text, style=config["color"], justify="center"), title="Seu Painel", border_style=config["color"]))
+        layout["banner"].update(
+            Panel(Text(banner_text, style=config["color"], justify="center"),
+                  title="Seu Painel", border_style=config["color"])
+        )
 
         # Menu interativo
         menu_panel = Panel.fit(
@@ -194,26 +202,4 @@ def main_menu():
                 resetar_padrao()
                 config = carregar_config()
                 console.clear()
-        elif choice == 9:
-            salvar_config(config)
-            configurar_autostart(config)
-            console.print("[yellow]Configurações salvas! Ao abrir o Termux só aparecerá o banner e o prompt com seu nome.[/yellow]")
-            sleep(2)
-            break
-
-
-# --- Modo auto (quando abrir o Termux) ---
-def auto_start():
-    config = carregar_config()
-    pedir_senha(config)
-    console.clear()  # Limpa toda a tela
-    with open(BANNER_FILE, "r") as f:
-        print(f.read())
-    # O prompt personalizado do bashrc aparece abaixo do banner
-
-
-if __name__ == "__main__":
-    if "--auto" in sys.argv:
-        auto_start()
-    else:
-        main_menu()
+        elif choice ==
