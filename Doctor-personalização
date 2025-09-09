@@ -1,0 +1,213 @@
+import os
+import sys
+import json
+import pyfiglet
+from time import sleep
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.prompt import Prompt, IntPrompt
+from rich.align import Align
+from rich.layout import Layout
+
+console = Console()
+
+CONFIG_FILE = os.path.expanduser("~/.painel_config.json")
+BASHRC_FILE = os.path.expanduser("~/.bashrc")
+BACKUP_BASHRC_FILE = os.path.expanduser("~/.bashrc_backup_before_panel")
+BANNER_FILE = os.path.expanduser("~/.painel_banner.txt")
+
+FONT_OPTIONS = {
+    1: 'slant', 2: 'starwars', 3: 'banner', 4: 'big',
+    5: 'standard', 6: 'puffy', 7: '3d'
+}
+PANEL_COLORS = ['red', 'green', 'blue', 'yellow', 'purple', 'cyan', 'white']
+
+# --- Salvar / Carregar ---
+def salvar_config(config):
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f)
+
+def carregar_config():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            config = json.load(f)
+    else:
+        config = {
+            "name": "Convidado",
+            "font": FONT_OPTIONS[1],
+            "prompt": "Convidado",
+            "password": "",
+            "color": "green"
+        }
+    if config["font"] not in FONT_OPTIONS.values():
+        config["font"] = FONT_OPTIONS[1]
+    if config["color"] not in PANEL_COLORS:
+        config["color"] = "green"
+    return config
+
+# --- Gerar Banner ---
+def gerar_banner(config):
+    try:
+        f = pyfiglet.Figlet(font=config["font"])
+        ascii_art = f.renderText(config["name"])
+    except pyfiglet.FontNotFound:
+        ascii_art = f"Banner para {config['name']} (fonte não encontrada)"
+    with open(BANNER_FILE, "w") as f_banner:
+        f_banner.write(ascii_art)
+
+# --- Pedir senha se configurada ---
+def pedir_senha(config):
+    if config.get("password"):
+        for _ in range(3):
+            senha = Prompt.ask("[bold cyan]Digite a senha para acessar[/bold cyan]", password=True)
+            if senha == config["password"]:
+                return True
+            console.print("[red]Senha incorreta![/red]")
+        console.print("[bold red]Acesso negado![/bold red]")
+        sys.exit(1)
+    return True
+
+# --- Configuração automática para abrir no Termux ---
+def configurar_autostart(config):
+    gerar_banner(config)
+    if not os.path.exists(BACKUP_BASHRC_FILE) and os.path.exists(BASHRC_FILE):
+        with open(BASHRC_FILE, "r") as f:
+            original = f.read()
+        with open(BACKUP_BASHRC_FILE, "w") as f:
+            f.write(original)
+    with open(BASHRC_FILE, "w") as f:
+        f.write("# Bashrc personalizado pelo Painel\n")
+        f.write("clear\n")
+        f.write(f'cat "{BANNER_FILE}"\n')
+        f.write(f'export PS1="{config["prompt"]} $ "\n')
+
+# --- Resetar para padrão de fábrica ---
+def resetar_padrao():
+    if os.path.exists(BACKUP_BASHRC_FILE):
+        with open(BACKUP_BASHRC_FILE, "r") as f:
+            conteudo = f.read()
+        with open(BASHRC_FILE, "w") as f:
+            f.write(conteudo)
+        console.print("[green]Bashrc restaurado para o padrão de fábrica.[/green]")
+    else:
+        with open(BASHRC_FILE, "w") as f:
+            f.write("")
+        console.print("[yellow]Bashrc limpo. Nenhum backup encontrado.[/yellow]")
+    if os.path.exists(CONFIG_FILE):
+        os.remove(CONFIG_FILE)
+    if os.path.exists(BANNER_FILE):
+        os.remove(BANNER_FILE)
+    console.print("[green]Configurações do painel removidas.[/green]")
+    sleep(2)
+
+# --- Menu Principal ---
+def main_menu():
+    config = carregar_config()
+    if not os.path.exists(BANNER_FILE):
+        gerar_banner(config)
+    console.clear()
+
+    while True:
+        layout = Layout()
+        layout.split_column(
+            Layout(name="banner", size=12),
+            Layout(name="menu")
+        )
+
+        # Banner
+        with open(BANNER_FILE, "r") as f:
+            banner_text = f.read()
+        layout["banner"].update(
+            Panel(Text(banner_text, style=config["color"], justify="center"),
+                  title="Seu Painel", border_style=config["color"])
+        )
+
+        # Menu interativo
+        menu_panel = Panel.fit(
+            "\n".join([
+                f"[bold cyan]1[/bold cyan]) Alterar Nome (Atual: [bold green]{config['name']}[/bold green])",
+                f"[bold cyan]2[/bold cyan]) Alterar Fonte do Banner (Atual: [bold green]{config['font']}[/bold green])",
+                f"[bold cyan]3[/bold cyan]) Alterar Cor do Banner (Atual: [bold {config['color']}]{config['color']}[/bold {config['color']}])",
+                f"[bold cyan]4[/bold cyan]) Configurar Senha (Atual: [bold red]{'Não configurada' if not config['password'] else 'Configurada'}[/bold red])",
+                f"[bold cyan]5[/bold cyan]) Alterar Texto do Prompt (Atual: [bold magenta]{config['prompt']}[/bold magenta])",
+                f"[bold cyan]6[/bold cyan]) Remover Senha",
+                f"[bold cyan]7[/bold cyan]) Visualizar Painel",
+                f"[bold cyan]8[/bold cyan]) Resetar para padrão de fábrica",
+                f"[bold cyan]9[/bold cyan]) Sair e Salvar"
+            ]),
+            title="[bold yellow]Menu Principal[/bold yellow]",
+            border_style="bright_blue"
+        )
+        layout["menu"].update(menu_panel)
+
+        console.print(layout)
+        choice = IntPrompt.ask("[bold magenta]Escolha uma opção[/bold magenta]", choices=[str(i) for i in range(1, 10)], show_choices=False)
+
+        if choice == 1:
+            config["name"] = Prompt.ask(Panel("[bold green]Digite o nome[/bold green]", border_style="green"))
+            gerar_banner(config)
+        elif choice == 2:
+            console.print(Panel("\n".join(f"{k}) {v}" for k, v in FONT_OPTIONS.items()), title="Escolha a Fonte", border_style="magenta"))
+            esc = IntPrompt.ask("[bold cyan]Escolha a fonte[/bold cyan]", choices=[str(k) for k in FONT_OPTIONS.keys()])
+            config["font"] = FONT_OPTIONS[int(esc)]
+            gerar_banner(config)
+        elif choice == 3:
+            console.print(Panel("\n".join(f"{i}) {c}" for i, c in enumerate(PANEL_COLORS, 1)), title="Escolha a Cor", border_style="cyan"))
+            esc = IntPrompt.ask("[bold cyan]Escolha a cor[/bold cyan]", choices=[str(i) for i in range(1, len(PANEL_COLORS)+1)])
+            config["color"] = PANEL_COLORS[int(esc)-1]
+        elif choice == 4:
+            resp = Prompt.ask("Deseja criar senha? (s/n)", choices=["s","n"], default="n")
+            if resp == "s":
+                senha = Prompt.ask("Digite a senha", password=True)
+                confirma = Prompt.ask("Confirme a senha", password=True)
+                if senha == confirma:
+                    config["password"] = senha
+                else:
+                    console.print("[red]Senhas não conferem![/red]")
+        elif choice == 5:
+            config["prompt"] = Prompt.ask("Digite o texto do prompt", default=config["name"])
+        elif choice == 6:
+            if not config.get("password"):
+                console.print("[yellow]Nenhuma senha configurada.[/yellow]")
+            else:
+                atual = Prompt.ask("Digite a senha atual para remover", password=True)
+                if atual == config["password"]:
+                    config["password"] = ""
+                    console.print("[green]Senha removida com sucesso.[/green]")
+                else:
+                    console.print("[red]Senha incorreta. Não foi possível remover.[/red]")
+        elif choice == 7:
+            console.clear()
+            gerar_banner(config)
+            with open(BANNER_FILE, "r") as f:
+                console.print(Align.center(f.read()), style=config["color"])
+            Prompt.ask("\nPressione Enter para voltar")
+            console.clear()
+        elif choice == 8:
+            confirm = Prompt.ask("Tem certeza que deseja resetar tudo? (s/n)", choices=["s","n"], default="n")
+            if confirm == "s":
+                resetar_padrao()
+                config = carregar_config()
+                console.clear()
+        elif choice == 9:
+            salvar_config(config)
+            configurar_autostart(config)
+            console.clear()
+            console.print("[yellow]Configurações salvas! Ao abrir o Termux só aparecerá o que você escolheu.[/yellow]")
+            sleep(2)
+            break
+
+# --- Modo auto (quando abrir o Termux) ---
+def auto_start():
+    config = carregar_config()
+    pedir_senha(config)
+    console.clear()
+    with open(BANNER_FILE, "r") as f:
+        console.print(Align.center(f.read()), style=config["color"])
+
+if __name__ == "__main__":
+    if "--auto" in sys.argv:
+        auto_start()
+    else:
+        main_menu()
