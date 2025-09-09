@@ -202,4 +202,26 @@ def main_menu():
                 resetar_padrao()
                 config = carregar_config()
                 console.clear()
-        elif choice ==
+        elif choice == 9:
+            salvar_config(config)
+            configurar_autostart(config)
+            console.clear()
+            console.print("[yellow]Configurações salvas! Ao abrir o Termux só aparecerá o que você escolheu.[/yellow]")
+            sleep(2)
+            break
+
+
+# --- Modo auto (quando abrir o Termux) ---
+def auto_start():
+    config = carregar_config()
+    pedir_senha(config)
+    console.clear()
+    with open(BANNER_FILE, "r") as f:
+        console.print(Align.center(f.read()), style=config["color"])
+
+
+if __name__ == "__main__":
+    if "--auto" in sys.argv:
+        auto_start()
+    else:
+        main_menu()
