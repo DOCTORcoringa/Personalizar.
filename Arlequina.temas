@@ -1,6 +1,6 @@
 #!/bin/bash
 # ========================================================
-# Termux Personalizado Simples - Banner + Front
+# Termux Personalizado Interativo - Doctor Coringa
 # ========================================================
 
 # Cores
@@ -10,61 +10,98 @@ AZUL='\033[0;34m'
 ROXO='\033[0;35m'
 RESET='\033[0m'
 
-# Limpa a tela
-clear
-echo -e "${ROXO}Termux Personalizado Simples${RESET}"
-echo -e "${VERDE}Por: Doctor Coringa Lunático${RESET}"
-echo
+# Variáveis iniciais
+NOME_BANNER=""
+FONTE_BANNER="slant"
+NOME_FRONT=""
+COR_FRONT="$VERDE"
 
-# Instala dependências
-pkg install -y figlet toilet > /dev/null 2>&1
-
-# Nome do banner
-read -p "Digite o NOME do BANNER: " NOME_BANNER
-
-# Nome do front
-read -p "Digite o NOME do FRONT (aparecerá no prompt): " NOME_FRONT
-
-# Cor do front
-echo "Escolha a cor do FRONT:"
-echo "1) Verde"
-echo "2) Vermelho"
-read -p "Número da cor: " COR_OPCAO
-if [ "$COR_OPCAO" -eq 2 ]; then
-  COR_FRONT="$VERMELHO"
-else
-  COR_FRONT="$VERDE"
-fi
-
-# Escolha da fonte
 FONTES=("slant" "big" "3d" "block" "banner" "larry3d" "starwars" "doom" "univers" "digital")
-echo "Escolha a FONTE do banner:"
-for i in "${!FONTES[@]}"; do
-  echo "$((i+1))) ${FONTES[$i]}"
-done
-read -p "Número da fonte: " FONT_OPCAO
-if [[ "$FONT_OPCAO" -ge 1 && "$FONT_OPCAO" -le ${#FONTES[@]} ]]; then
-  FONTE_ESCOLHIDA="${FONTES[$((FONT_OPCAO-1))]}"
-else
-  FONTE_ESCOLHIDA="slant"
-fi
 
-# Cria conteúdo do novo .bashrc
-NOVO_BASHRC="# Banner e front
+# Função para exibir banner
+mostrar_banner() {
+  clear
+  echo -e "${ROXO}=== Termux Personalizado Interativo ===${RESET}"
+  echo
+  if [ ! -z "$NOME_BANNER" ]; then
+    figlet -f "$FONTE_BANNER" "$NOME_BANNER"
+    echo
+  fi
+}
+
+# Função para mostrar menu
+mostrar_menu() {
+  echo -e "${VERDE}Menu de Personalização:${RESET}"
+  echo "1) Definir nome do BANNER"
+  echo "2) Escolher fonte do BANNER"
+  echo "3) Definir nome do FRONT (prompt)"
+  echo "4) Escolher cor do FRONT"
+  echo "5) Salvar e sair"
+  echo
+  echo "Resumido até agora:"
+  echo "Banner: ${NOME_BANNER:-(não definido)}"
+  echo "Fonte: $FONTE_BANNER"
+  echo "Front: ${NOME_FRONT:-(não definido)}"
+  echo -e "Cor do front: $( [ "$COR_FRONT" == "$VERDE" ] && echo 'Verde' || echo 'Vermelho' )"
+  echo
+  read -p "Escolha uma opção (1-5): " OPCAO
+}
+
+# Função principal do painel
+while true; do
+  mostrar_banner
+  mostrar_menu
+  case $OPCAO in
+    1)
+      read -p "Digite o NOME do BANNER: " NOME_BANNER
+      ;;
+    2)
+      echo "Escolha a fonte do BANNER:"
+      for i in "${!FONTES[@]}"; do
+        echo "$((i+1))) ${FONTES[$i]}"
+      done
+      read -p "Número da fonte: " F
+      if [[ "$F" -ge 1 && "$F" -le ${#FONTES[@]} ]]; then
+        FONTE_BANNER="${FONTES[$((F-1))]}"
+      fi
+      ;;
+    3)
+      read -p "Digite o NOME do FRONT (aparecerá no prompt): " NOME_FRONT
+      ;;
+    4)
+      echo "Escolha a cor do FRONT:"
+      echo "1) Verde"
+      echo "2) Vermelho"
+      read -p "Número da cor: " C
+      if [ "$C" -eq 2 ]; then
+        COR_FRONT="$VERMELHO"
+      else
+        COR_FRONT="$VERDE"
+      fi
+      ;;
+    5)
+      break
+      ;;
+    *)
+      echo -e "${VERMELHO}Opção inválida!${RESET}"
+      sleep 1
+      ;;
+  esac
+done
+
+# Cria .bashrc final
+NOVO_BASHRC="# Banner e front final
 clear
 echo -e \"${ROXO}\"
-figlet -f \"$FONTE_ESCOLHIDA\" \"$NOME_BANNER\"
+figlet -f \"$FONTE_BANNER\" \"$NOME_BANNER\"
 echo -e \"${RESET}\"
-
-# Prompt personalizado com front
 PS1='${COR_FRONT}${NOME_FRONT} \\w\\[\\033[00m\\]$ '
 "
 
-# Salva no .bashrc
 echo "$NOVO_BASHRC" > "$HOME/.bashrc"
 
 clear
 echo -e "${VERDE}------------------------------------------"
-echo "       🎉 Personalização Concluída 🎉"
+echo "       🎉 Personalização Interativa Concluída 🎉"
 echo -e "------------------------------------------${RESET}"
 echo "Reinicie o Termux para ver o banner e o front no prompt."
