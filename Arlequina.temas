@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import json
-import getpass
 
 CONFIG_PATH = os.path.expanduser("~/.termux_custom_panel.json")
 
@@ -22,8 +21,7 @@ r"""
  |  _  / _ \/ _ \ '_ \| __/ _ \ '__|
  | | \  __/  __/ | | | ||  __/ |   
  |_|  \___|\___|_| |_|\__\___|_|   
-""",
-# Complete os 16 banners reais aqui...
+"""
 ]
 
 COLORS = {
@@ -40,39 +38,28 @@ COLORS = {
 def clear():
     os.system('clear' if os.name == 'posix' else 'cls')
 
-def loading_bar(text, duration=3):
+def caixa_texto(texto):
+    largura = len(texto) + 2
+    topo = "╔" + "═" * largura + "╗"
+    meio = f"║ {texto} ║"
+    base = "╚" + "═" * largura + "╝"
+    return f"{topo}\n{meio}\n{base}"
+
+def mostrar_banner(nome, banner_idx, cor):
     clear()
-    print(f"{text}...")
-    for i in range(0, 101, 5):
-        sys.stdout.write(f"\r[{'=' * (i // 5):<20}] {i}%")
-        sys.stdout.flush()
-        time.sleep(duration / 20)
-    print()
+    cor_code = COLORS.get(cor, COLORS["reset"])
+    banner = BANNERS[banner_idx]
+    banner = banner.replace("Termux", nome)
+    print(f"{cor_code}{banner}{COLORS['reset']}")
 
-def input_text(prompt, max_len=20):
-    while True:
-        clear()
-        print(f"\033[93m{prompt}\033[0m\n")
-        txt = input("> ").strip()
-        if 0 < len(txt) <= max_len:
-            return txt
-        print(f"Informe um texto de 1 a {max_len} caracteres. Pressione Enter.")
-        input()
+def mostrar_prompt(nome, cor):
+    cor_code = COLORS.get(cor, COLORS["reset"])
+    print(cor_code)
+    print(caixa_texto(nome))
+    print(COLORS["reset"])
 
-def input_choice(prompt, options):
-    while True:
-        clear()
-        print(f"\033[96m{prompt}\033[0m\n")
-        for i, option in enumerate(options, 1):
-            print(f"  [{i}] {option}")
-        print("\nEscolha um número ou 0 para voltar:")
-        choice = input("> ")
-        if choice.isdigit():
-            choice = int(choice)
-            if 0 <= choice <= len(options):
-                return choice
-        print("Opção inválida! Pressione Enter para tentar novamente.")
-        input()
+def mostrar_creditos():
+    print("\n" + caixa_texto("Criado por Doctor Coringa Lunático - Hack the Limits!") + "\n")
 
 def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
@@ -84,64 +71,110 @@ def load_config():
             return json.load(f)
     return {}
 
-def caixa_texto_lado_direito_aberto(texto):
-    largura = len(texto) + 2
-    topo = "╔" + "═" * largura + "╗"
-    meio = "║" + " " * largura
-    base = "╚"
-    return f"{topo}\n{meio}\n{base}"
+def input_text(prompt, max_len=20):
+    while True:
+        clear()
+        print(f"\033[93m{prompt}\033[0m\n")
+        txt = input("> ").strip()
+        if 0 < len(txt) <= max_len:
+            return txt
+        print(f"Texto inválido. Máximo {max_len} caracteres. Tente novamente.")
+        input("Pressione Enter para continuar...")
 
-def print_banner(banner_idx, name, color):
+def input_choice(prompt, options):
+    while True:
+        clear()
+        print(f"\033[96m{prompt}\033[0m\n")
+        for i, option in enumerate(options, 1):
+            print(f"  [{i}] {option}")
+        print("\nEscolha um número:")
+        choice = input("> ")
+        if choice.isdigit():
+            num = int(choice)
+            if 1 <= num <= len(options):
+                return num - 1
+        print("Opção inválida. Tente novamente.")
+        time.sleep(1)
+
+def loading_bar(text, duration=2, color="verde"):
     clear()
-    color_code = COLORS.get(color, COLORS["reset"])
-    banner = BANNERS[banner_idx]
-    banner = banner.replace("Termux", name)
-    print(f"{color_code}{banner}{COLORS['reset']}")
+    cor_code = COLORS.get(color, COLORS["reset"])
+    print(f"{cor_code}{text}...{COLORS['reset']}")
+    for i in range(0, 101, 5):
+        sys.stdout.write(f"\r{cor_code}[{'='*(i//5):<20}] {i}%{COLORS['reset']}")
+        sys.stdout.flush()
+        time.sleep(duration/20)
+    print()
 
-def print_prompt(name):
-    print(caixa_texto_lado_direito_aberto(name))
+def painel_configuracao():
+    config = load_config()
+    if not config:
+        config = {
+            "name_banner": "ExemploBanner",
+            "banner_idx": 0,
+            "color_banner": "verde",
+            "name_prompt": "ExemploFront",
+            "color_prompt": "ciano"
+        }
+
+    while True:
+        clear()
+        print(caixa_texto("Painel de Personalização - Dr. Inovando"))
+        print("\nEscolha uma opção:\n")
+        print(" [1] Definir nome do banner")
+        print(" [2] Escolher estilo do banner")
+        print(" [3] Escolher cor do banner")
+        print(" [4] Definir nome do front (prompt/caixinha)")
+        print(" [5] Escolher cor do front (prompt/caixinha)")
+        print(" [6] Salvar e sair\n")
+        mostrar_creditos()
+
+        escolha = input("> ")
+
+        if escolha == "1":
+            config["name_banner"] = input_text("Digite o nome para o banner (máx 20 caracteres):")
+            loading_bar("Aplicando nome do banner", color="amarelo")
+        elif escolha == "2":
+            ix_banner = input_choice("Escolha o estilo do banner:", [f"Banner {i+1}" for i in range(len(BANNERS))])
+            config["banner_idx"] = ix_banner
+            loading_bar("Aplicando estilo do banner", color="ciano")
+        elif escolha == "3":
+            cores = list(COLORS.keys())
+            cores.remove("reset")
+            ix_cor_banner = input_choice("Escolha a cor do banner:", cores)
+            config["color_banner"] = cores[ix_cor_banner]
+            loading_bar("Aplicando cor do banner", color="verde")
+        elif escolha == "4":
+            config["name_prompt"] = input_text("Digite o nome para o prompt/front (máx 20 caracteres):")
+            loading_bar("Aplicando nome do prompt/front", color="magenta")
+        elif escolha == "5":
+            cores = list(COLORS.keys())
+            cores.remove("reset")
+            ix_cor_prompt = input_choice("Escolha a cor do prompt/front:", cores)
+            config["color_prompt"] = cores[ix_cor_prompt]
+            loading_bar("Aplicando cor do prompt/front", color="azul")
+        elif escolha == "6":
+            save_config(config)
+            clear()
+            mostrar_banner(config["name_banner"], config["banner_idx"], config["color_banner"])
+            mostrar_prompt(config["name_prompt"], config["color_prompt"])
+            mostrar_creditos()
+            print("Configuração salva e aplicada com sucesso!\n")
+            input("Pressione Enter para sair...")
+            break
+        else:
+            print("Opção inválida. Tente novamente.")
+            time.sleep(1)
 
 def main():
     config = load_config()
-
-    # Nome
-    nome = input_text("Digite o nome para o banner (máx 20 caracteres):")
-    loading_bar("Aplicando nome")
-    config["name"] = nome
-
-    # Banner
-    op_banner = input_choice("Escolha um banner para o nome:", [f"Banner {i+1}" for i in range(len(BANNERS))])
-    if op_banner == 0:
-        print("Nenhuma opção selecionada. Saindo.")
-        return
-    loading_bar("Aplicando banner")
-    config["banner_idx"] = op_banner - 1
-
-    # Cor do banner (nome)
-    op_cor_banner = input_choice("Escolha a cor do banner:", list(COLORS.keys())[:-1])
-    if op_cor_banner == 0:
-        print("Nenhuma cor selecionada. Saindo.")
-        return
-    loading_bar("Aplicando cor do banner")
-    config["color_banner"] = list(COLORS.keys())[op_cor_banner - 1]
-
-    # Cor do prompt (fonte)
-    op_cor_prompt = input_choice("Escolha a cor do prompt (fonte):", list(COLORS.keys())[:-1])
-    if op_cor_prompt == 0:
-        print("Nenhuma cor selecionada. Saindo.")
-        return
-    loading_bar("Aplicando cor do prompt")
-    config["color_prompt"] = list(COLORS.keys())[op_cor_prompt - 1]
-
-    save_config(config)
     clear()
-
-    # Mostrar resultado final
-    print(f"\033[{config['color_banner']}m")
-    print_banner(config['banner_idx'], config['name'], config['color_banner'])
-    print_prompt(config['name'])
-    print(f"\033[{config['color_prompt']}m")
-    print("\n\n\033[90mCriado por Doctor Coringa Lunático - Hack the Limits!\033[0m")
+    if config:
+        mostrar_banner(config["name_banner"], config["banner_idx"], config["color_banner"])
+        mostrar_prompt(config["name_prompt"], config["color_prompt"])
+        mostrar_creditos()
+    else:
+        painel_configuracao()
 
 if __name__ == "__main__":
     main()
