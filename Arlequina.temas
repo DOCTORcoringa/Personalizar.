@@ -1,191 +1,150 @@
-import os
-import sys
-import time
-import json
+#!/bin/bash
 
-CONFIG_PATH = os.path.expanduser("~/.arlequina_panel.json")
+# Cores
+VERMELHO='\033[0;31m'
+VERDE='\033[0;32m'
+AMARELO='\033[0;33m'
+AZUL='\033[0;34m'
+ROXO='\033[0;35m'
+CIANO='\033[0;36m'
+BRANCO='\033[0;37m'
+RESET='\033[0m'
 
-BANNERS = [
-r"""
-  ____                  _             
- |  _ \ ___  __ _  __ _| | ___  _ __  
- | |_) / _ \/ _` |/ _` | |/ _ \| '_ \ 
- |  __/  __/ (_| | (_| | | (_) | | | |
- |_|   \___|\__, |\__,_|_|\___/|_| |_|
-             |___/                    
-""",
-r"""
-  _____                  _           
- |  __ \                | |          
- | |  | | ___  ___ _ __ | |_ ___ _ __ 
- |  _  / _ \/ _ \ '_ \| __/ _ \ '__|
- | | \  __/  __/ | | | ||  __/ |   
- |_|  \___|\___|_| |_|\__\___|_|   
-""",
-]
+# Função para exibir uma barra de carregamento
+carregando() {
+  local i=1
+  local max=30
+  local progresso=""
+  local simbolo="█"
+  local mensagem="$1"
 
-COLORS = {
-    "vermelho": "\033[91m",
-    "verde": "\033[92m",
-    "amarelo": "\033[93m",
-    "azul": "\033[94m",
-    "magenta": "\033[95m",
-    "ciano": "\033[96m",
-    "branco": "\033[97m",
-    "reset": "\033[0m"
+  echo -n "$mensagem "
+  while [ $i -le $max ]; do
+    echo -ne "\r$mensagem ${VERDE}[${progresso}${simbolo}${RESET}]"
+    sleep 0.05
+    progresso+="$simbolo"
+    i=$((i+1))
+  done
+  echo -ne "\r$mensagem ${VERDE}[${progresso}${RESET}]${RESET} [${VERDE}✓${RESET}]"
+  echo
 }
 
-def clear():
-    os.system('clear' if os.name == 'posix' else 'cls')
+# Limpa a tela
+clear
 
-def loading_bar(text, duration=2):
-    clear()
-    print(f"{text}...")
-    for i in range(0, 101, 5):
-        sys.stdout.write(f"\r[{'='*(i//5):<20}] {i}%")
-        sys.stdout.flush()
-        time.sleep(duration/20)
-    print()
+# Banner inicial
+echo -e "${ROXO}"
+figlet "Termux Pessoal"
+echo -e "${RESET}"
+echo -e "${VERMELHO}------------------------------------------"
+echo -e "${VERDE}         Por: Doctor Coringa Lunático"
+echo -e "${VERMELHO}------------------------------------------"
+echo -e "${AZUL}Este é um painel de personalização para o Termux."
+echo -e "Aqui você pode deixar seu terminal com a sua cara!${RESET}"
+echo
 
-def input_text(prompt, max_len=20):
-    while True:
-        clear()
-        print(f"\033[93m{prompt}\033[0m\n")
-        txt = input("> ").strip()
-        if 0 < len(txt) <= max_len:
-            return txt
-        print(f"Texto inválido. Máximo {max_len} caracteres. Tente novamente.")
-        input("Pressione Enter para continuar...")
+# 1. Instalação de dependências
+carregando "Verificando e instalando dependências..."
+pkg install figlet toilet -y > /dev/null 2>&1
+sleep 1
 
-def input_choice(prompt, options):
-    while True:
-        clear()
-        print(f"\033[96m{prompt}\033[0m\n")
-        for i, option in enumerate(options, 1):
-            print(f"  [{i}] {option}")
-        print("\nEscolha um número:")
-        choice = input("> ")
-        if choice.isdigit():
-            num = int(choice)
-            if 1 <= num <= len(options):
-                return num - 1
-        print("Opção inválida. Tente novamente.")
-        time.sleep(1)
+# 2. Pergunta o nome para o banner e prompt
+echo
+echo -e "${AMARELO}Passo 1: Qual nome você quer usar?${RESET}"
+echo -e "${CIANO}(Este nome aparecerá no banner e no prompt)${RESET}"
+read -p "Nome: " NOME_DO_USUARIO
+echo
 
-def save_config(config):
-    with open(CONFIG_PATH, 'w') as f:
-        json.dump(config, f)
+# 3. Escolhe a fonte do banner
+echo -e "${AMARELO}Passo 2: Escolha o estilo do seu banner:${RESET}"
+echo -e "1) ${VERDE}Slant (Inclinado)${RESET}"
+echo -e "2) ${VERDE}Big (Grande)${RESET}"
+echo -e "3) ${VERDE}3D (Tridimensional)${RESET}"
+read -p "Digite o número da opção desejada: " OPCAO_FONTE
+echo
 
-def load_config():
-    if os.path.isfile(CONFIG_PATH):
-        with open(CONFIG_PATH, 'r') as f:
-            return json.load(f)
-    # valores padrão para evitar KeyError
-    return {
-        "name_banner": "Exemplo",
-        "banner_idx": 0,
-        "color_banner": "ciano",
-        "name_front": "Usuário",
-        "color_front": "verde"
-    }
+FONTE_SELECIONADA=""
+case $OPCAO_FONTE in
+  1) FONTE_SELECIONADA="slant";;
+  2) FONTE_SELECIONADA="big";;
+  3) FONTE_SELECIONADA="3d";;
+  *) FONTE_SELECIONADA="slant";;
+esac
 
-def caixa_texto(nome):
-    largura = len(nome) + 4
-    topo = "╔" + "═" * largura + "╗"
-    meio = f"║  {nome}  ║"
-    base = "╚" + "═" * largura + "╝"
-    return f"{topo}\n{meio}\n{base}"
+carregando "Aplicando estilo do banner..."
+sleep 1
+clear
 
-def mostrar_banner(nome, banner_idx, cor):
-    clear()
-    cor_code = COLORS.get(cor, COLORS["reset"])
-    banner = BANNERS[banner_idx]
-    banner = banner.replace("Termux", nome)
-    print(f"{cor_code}{banner}{COLORS['reset']}")
+# 4. Escolhe a cor do prompt
+echo
+echo -e "${AMARELO}Passo 3: Escolha a cor do seu prompt (nome na linha de comando):${RESET}"
+echo -e "1) ${VERDE}Verde${RESET}"
+echo -e "2) ${CIANO}Ciano${RESET}"
+echo -e "3) ${AZUL}Azul${RESET}"
+echo -e "4) ${VERMELHO}Vermelho${RESET}"
+read -p "Digite o número da opção desejada: " OPCAO_COR
+echo
 
-def mostrar_prompt(nome, cor):
-    cor_code = COLORS.get(cor, COLORS["reset"])
-    print(cor_code)
-    print(caixa_texto(nome))
-    print(COLORS["reset"])
+COR_SELECIONADA=""
+case $OPCAO_COR in
+  1) COR_SELECIONADA='\\[\\033[01;32m\\]';;
+  2) COR_SELECIONADA='\\[\\033[01;36m\\]';;
+  3) COR_SELECIONADA='\\[\\033[01;34m\\]';;
+  4) COR_SELECIONADA='\\[\\033[01;31m\\]';;
+  *) COR_SELECIONADA='\\[\\033[01;32m\\]';;
+esac
 
-def mostrar_creditos():
-    print("\n\033[90mCriado por Doctor Coringa Lunático - Hack the Limits!\033[0m\n")
+carregando "Aplicando cor do prompt..."
+sleep 1
+clear
 
-def painel_configuracao():
-    config = load_config()
+# 5. Opção de "caixinha" no prompt
+echo
+echo -e "${AMARELO}Passo 4: Você quer o nome do prompt dentro de uma caixa?${RESET}"
+read -p "Digite 's' para sim ou 'n' para não: " OPCAO_CAIXA
+echo
 
-    while True:
-        clear()
-        print("╔════════════════════════════════╗")
-        print("║     Painel de Personalização   ║")
-        print("║        Doctor Inovando         ║")
-        print("╚════════════════════════════════╝\n")
+carregando "Salvando configurações..."
+sleep 1
 
-        print(" [1] Definir nome do banner")
-        print(" [2] Escolher estilo do banner")
-        print(" [3] Escolher cor do banner")
-        print(" [4] Definir nome do front")
-        print(" [5] Escolher cor do front")
-        print(" [6] Salvar e sair\n")
+# Cria o banner
+BANNER_FINAL=$(figlet -f "$FONTE_SELECIONADA" "$NOME_DO_USUARIO")
 
-        mostrar_creditos()
+# Cria o conteúdo do novo .bashrc
+if [[ "$OPCAO_CAIXA" =~ ^[Ss]$ ]]; then
+  PROMPT_FINAL=$(toilet --box -f mono12 "$NOME_DO_USUARIO")
+  NOVO_BASHRC="# Banner e prompt personalizados
+clear
+echo -e \"${ROXO}\"
+echo \"$BANNER_FINAL\"
+echo
+echo \"$PROMPT_FINAL\"
+echo -e \"${RESET}\"
+echo
+PS1='\\[\\033[01;32m\\]\w\\[\\033[00m\\]\\$ '
+"
+else
+  NOVO_BASHRC="# Banner e prompt personalizados
+clear
+echo -e \"${ROXO}\"
+echo \"$BANNER_FINAL\"
+echo -e \"${RESET}\"
+echo
+PS1='${COR_SELECIONADA}$NOME_DO_USUARIO\\[\\033[00m\\]:\\[\\033[01;34m\\]~\\[\\033[00m\\]\\$ '
+"
+fi
 
-        escolha = input("> ")
+# Salva o novo conteúdo no arquivo .bashrc
+echo "$NOVO_BASHRC" > $HOME/.bashrc
 
-        if escolha == "1":
-            nome = input_text("Digite o nome para o banner (máx 20 caracteres):")
-            loading_bar("Aplicando nome do banner")
-            config["name_banner"] = nome
-
-        elif escolha == "2":
-            ix_banner = input_choice("Escolha o estilo do banner:", [f"Banner {i+1}" for i in range(len(BANNERS))])
-            loading_bar("Aplicando estilo do banner")
-            config["banner_idx"] = ix_banner
-
-        elif escolha == "3":
-            cores = list(COLORS.keys())
-            cores.remove("reset")
-            ix_cor = input_choice("Escolha a cor do banner:", cores)
-            loading_bar("Aplicando cor do banner")
-            config["color_banner"] = cores[ix_cor]
-
-        elif escolha == "4":
-            nome_front = input_text("Digite o nome para o front (máx 20 caracteres):")
-            loading_bar("Aplicando nome do front")
-            config["name_front"] = nome_front
-
-        elif escolha == "5":
-            cores = list(COLORS.keys())
-            cores.remove("reset")
-            ix_cor = input_choice("Escolha a cor do front:", cores)
-            loading_bar("Aplicando cor do front")
-            config["color_front"] = cores[ix_cor]
-
-        elif escolha == "6":
-            save_config(config)
-            clear()
-            mostrar_banner(config["name_banner"], config["banner_idx"], config["color_banner"])
-            mostrar_prompt(config["name_front"], config["color_front"])
-            mostrar_creditos()
-            print("Configuração salva e aplicada com sucesso!")
-            input("Pressione Enter para sair...")
-            break
-
-        else:
-            print("Opção inválida.")
-            time.sleep(1)
-
-def main():
-    config = load_config()
-    if os.path.isfile(CONFIG_PATH):
-        # já existe configuração salva
-        mostrar_banner(config.get("name_banner", "Exemplo"), config.get("banner_idx", 0), config.get("color_banner", "ciano"))
-        mostrar_prompt(config.get("name_front", "Usuário"), config.get("color_front", "verde"))
-        mostrar_creditos()
-    else:
-        # primeira vez -> painel
-        painel_configuracao()
-
-if __name__ == "__main__":
-    main()
+# Mensagem final
+clear
+echo -e "${VERDE}------------------------------------------"
+echo -e "       🎉 Instalação Concluída 🎉"
+echo -e "------------------------------------------${RESET}"
+echo
+echo -e "Seu Termux foi personalizado com sucesso!"
+echo "Reinicie o Termux para ver as mudanças."
+echo
+echo "Obrigado por usar o terminal de personalização Doctor Coringa!"
+echo "------------------------------------------"
