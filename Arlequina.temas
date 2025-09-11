@@ -1,171 +1,70 @@
 #!/bin/bash
 # ========================================================
-# Termux Premium Personalizado - Doctor Coringa
+# Termux Personalizado Simples - Banner + Front
 # ========================================================
 
-# ----------------- CORES -----------------
+# Cores
 VERMELHO='\033[0;31m'
 VERDE='\033[0;32m'
-AMARELO='\033[0;33m'
 AZUL='\033[0;34m'
 ROXO='\033[0;35m'
-CIANO='\033[0;36m'
-BRANCO='\033[0;37m'
-MAGENTA='\033[0;35m'
 RESET='\033[0m'
 
-# ----------------- FUNÇÕES -----------------
-
-# Barra de carregamento
-carregando() {
-  local i=1
-  local max=30
-  local progresso=""
-  local simbolo="█"
-  local mensagem="$1"
-  echo -n "$mensagem "
-  while [ $i -le $max ]; do
-    echo -ne "\r$mensagem ${VERDE}[${progresso}${simbolo}${RESET}]"
-    sleep 0.03
-    progresso+="$simbolo"
-    i=$((i+1))
-  done
-  echo -ne "\r$mensagem ${VERDE}[${progresso}${RESET}]${RESET} [${VERDE}✓${RESET}]\n"
-}
-
-# Validação de número
-le_numero() {
-  local prompt="$1"
-  local min="$2"
-  local max="$3"
-  local escolha
-  while true; do
-    read -r -p "$prompt" escolha
-    if [[ "$escolha" =~ ^[0-9]+$ ]] && [ "$escolha" -ge "$min" ] && [ "$escolha" -le "$max" ]; then
-      echo "$escolha"
-      return
-    else
-      echo -e "${VERMELHO}Opção inválida! Digite um número entre $min e $max.${RESET}"
-    fi
-  done
-}
-
-# Digitar texto letra por letra
-digitar() {
-  local texto="$1"
-  local cor="$2"
-  for ((i=0; i<${#texto}; i++)); do
-    echo -ne "${cor}${texto:$i:1}${RESET}"
-    sleep 0.08
-  done
-  echo
-}
-
-# Animação do trenzinho
-trenzinho() {
-  local frames=("-" "\\" "|" "/")
-  for i in {1..20}; do
-    for f in "${frames[@]}"; do
-      echo -ne "\r${AMARELO}Trenzinho passando... $f${RESET}"
-      sleep 0.1
-    done
-  done
-  echo -e "\r${VERDE}Trenzinho pronto!          ${RESET}"
-  sleep 0.5
-}
-
-# ----------------- EXECUÇÃO -----------------
-
+# Limpa a tela
 clear
-echo -e "${ROXO}"
-figlet "Termux Premium"
-echo -e "${RESET}"
+echo -e "${ROXO}Termux Personalizado Simples${RESET}"
 echo -e "${VERDE}Por: Doctor Coringa Lunático${RESET}"
-echo -e "${AZUL}Painel de Personalização do Termux${RESET}"
 echo
 
-# 1. Instala dependências
-carregando "Verificando dependências..."
-pkg install figlet toilet -y > /dev/null 2>&1
-sleep 0.5
+# Instala dependências
+pkg install -y figlet toilet > /dev/null 2>&1
 
-# ----------------- PASSO 1: NOME DO BANNER -----------------
-echo -e "${AMARELO}Passo 1: Escolha o NOME que vai aparecer no BANNER:${RESET}"
-read -r -p "Nome do banner: " NOME_BANNER
-echo
+# Nome do banner
+read -p "Digite o NOME do BANNER: " NOME_BANNER
 
-# ----------------- PASSO 2: FONTE -----------------
-echo -e "${AMARELO}Passo 2: Escolha a FONTE do banner:${RESET}"
+# Nome do front
+read -p "Digite o NOME do FRONT (aparecerá no prompt): " NOME_FRONT
+
+# Cor do front
+echo "Escolha a cor do FRONT:"
+echo "1) Verde"
+echo "2) Vermelho"
+read -p "Número da cor: " COR_OPCAO
+if [ "$COR_OPCAO" -eq 2 ]; then
+  COR_FRONT="$VERMELHO"
+else
+  COR_FRONT="$VERDE"
+fi
+
+# Escolha da fonte
 FONTES=("slant" "big" "3d" "block" "banner" "larry3d" "starwars" "doom" "univers" "digital")
+echo "Escolha a FONTE do banner:"
 for i in "${!FONTES[@]}"; do
   echo "$((i+1))) ${FONTES[$i]}"
 done
-OPCAO_FONTE=$(le_numero "Digite o número da fonte: " 1 ${#FONTES[@]})
-FONTE_ESCOLHIDA="${FONTES[$((OPCAO_FONTE-1))]}"
-echo
+read -p "Número da fonte: " FONT_OPCAO
+if [[ "$FONT_OPCAO" -ge 1 && "$FONT_OPCAO" -le ${#FONTES[@]} ]]; then
+  FONTE_ESCOLHIDA="${FONTES[$((FONT_OPCAO-1))]}"
+else
+  FONTE_ESCOLHIDA="slant"
+fi
 
-# ----------------- PASSO 3: NOME DO FRONT -----------------
-echo -e "${AMARELO}Passo 3: Escolha o NOME que vai aparecer no FRONT:${RESET}"
-read -r -p "Nome do front: " NOME_FRONT
-echo
-
-# ----------------- PASSO 4: COR DO FRONT -----------------
-echo -e "${AMARELO}Passo 4: Escolha a COR do front:${RESET}"
-CORES_FRONT=("$VERDE" "$VERMELHO" "$AZUL" "$CIANO" "$MAGENTA" "$AMARELO")
-CORES_NOMES=("Verde" "Vermelho" "Azul" "Ciano" "Magenta" "Amarelo")
-for i in "${!CORES_NOMES[@]}"; do
-  echo "$((i+1))) ${CORES_NOMES[$i]}"
-done
-OPCAO_COR_FRONT=$(le_numero "Digite o número da cor: " 1 ${#CORES_FRONT[@]})
-COR_FRONT="${CORES_FRONT[$((OPCAO_COR_FRONT-1))]}"
-
-carregando "Salvando configurações..."
-sleep 0.5
-
-# ----------------- MONTANDO .bashrc -----------------
-BANNER_FINAL=$(figlet -f "$FONTE_ESCOLHIDA" "$NOME_BANNER")
-FRONT_CAIXA=$(toilet --metal -f mono12 "$NOME_FRONT")
-
-NOVO_BASHRC="# Banner e front animado
+# Cria conteúdo do novo .bashrc
+NOVO_BASHRC="# Banner e front
 clear
-trenzinho() {
-  local frames=(\"-\" \"\\\\\" \"|\" \"/\")
-  for i in {1..20}; do
-    for f in \"\${frames[@]}\"; do
-      echo -ne \"\r${AMARELO}Trenzinho passando... \$f${RESET}\"
-      sleep 0.1
-    done
-  done
-  echo -e \"\r${VERDE}Trenzinho pronto!          ${RESET}\"
-  sleep 0.5
-}
-trenzinho
-
 echo -e \"${ROXO}\"
-echo \"$BANNER_FINAL\"
+figlet -f \"$FONTE_ESCOLHIDA\" \"$NOME_BANNER\"
 echo -e \"${RESET}\"
 
-digitar() {
-  local texto=\"\$1\"
-  local cor=\"\$2\"
-  for ((i=0; i<\${#texto}; i++)); do
-    echo -ne \"\${cor}\${texto:\$i:1}${RESET}\"
-    sleep 0.08
-  done
-  echo
-}
-
-digitar \"$NOME_FRONT\" \"$COR_FRONT\"
-
-PS1='\\[\\033[01;32m\\]\\w\\[\\033[00m\\]\\$ '
+# Prompt personalizado com front
+PS1='${COR_FRONT}${NOME_FRONT} \\w\\[\\033[00m\\]$ '
 "
 
+# Salva no .bashrc
 echo "$NOVO_BASHRC" > "$HOME/.bashrc"
 
-# ----------------- MENSAGEM FINAL -----------------
 clear
 echo -e "${VERDE}------------------------------------------"
-echo "       🎉 Configuração Premium Concluída 🎉"
+echo "       🎉 Personalização Concluída 🎉"
 echo -e "------------------------------------------${RESET}"
-echo
-echo "Reinicie o Termux para ver o banner e front animados!"
+echo "Reinicie o Termux para ver o banner e o front no prompt."
